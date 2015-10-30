@@ -36,6 +36,8 @@
 
 #define STATUS_WRITE 0x01
 
+#define TOP_ADDRESS 0x3FF000
+
 typedef union{
   uint32_t val;
   uint8_t buffer[4];
@@ -350,7 +352,25 @@ void EraseChip(){
   Serial.println(millis());  
 }
 
-
+boolean EraseBlock(uint32_t address){
+  uint16_t addressLow;
+  uint32_u addressOutput;
+  if (address > TOP_ADDRESS){
+    return false;
+  }
+  addressLow = address & 0x00000FFF;
+  if (addressLow != 0){
+    return false;
+  }
+  addressOutput.val = address;
+  FlashSSLow();
+  SPI.transfer(ERASE_4K);
+  SPI.transfer(addressOutput.buffer[2]);
+  SPI.transfer(addressOutput.buffer[1]);
+  SPI.transfer(addressOutput.buffer[0]);
+  FlashSSHigh();
+  return true;
+}
 
 
 
