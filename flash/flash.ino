@@ -207,9 +207,6 @@ void FlashInit(){
   SPI.transfer(STATUS_WRITE);
   SPI.transfer(0x00);
   FlashSSHigh();
-  FlashSSLow();
-  SPI.transfer(WRITE_ENABLE);
-  FlashSSHigh();
 
 }
 void CheackStatusReg(){
