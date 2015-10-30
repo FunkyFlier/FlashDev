@@ -97,30 +97,6 @@ void setup(){
   Serial<<"begin erase\r\n";
   EraseChip();
   
-  
-/*
-  //delay(5);
-  FlashSSLow();
-  SPI.transfer(WRITE_ENABLE);
-  //SPI.transfer(0x00);
-  FlashSSHigh();
-
-  FlashSSLow();
-  SPI.transfer(STATUS_WRITE);
-  SPI.transfer(0x00);
-  FlashSSHigh();
-  Serial<<"status reg\r\n";
-*/  
-  FlashSSLow();
-  SPI.transfer(READ_STATUS_REG);
-  Serial.println(SPI.transfer(0),HEX);
-  FlashSSHigh();
-
-  FlashSSLow();
-  SPI.transfer(WRITE_ENABLE);
-  //SPI.transfer(0x00);
-  FlashSSHigh();
-
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   Serial.println(SPI.transfer(0),HEX);
@@ -142,62 +118,8 @@ void setup(){
   for(int i = 0; i <= 255; i++){
     Serial.println(buffer[i]);
   }
-  /*
-  FlashSSLow();
-   SPI.transfer(ERASE_CHIP);
-   FlashSSHigh();
-   delay(1000);
-   
-   FlashSSLow();
-   SPI.transfer(READ_STATUS_REG);
-   Serial.println(SPI.transfer(0),HEX);
-   FlashSSHigh();*/
 
-  /*delay(5);
-   
-   
-   FlashSSLow();
-   SPI.transfer(STATUS_WRITE);
-   SPI.transfer(0x00);
-   FlashSSHigh();
-   
-   delay(5);
-   
-   FlashSSLow();
-   SPI.transfer(READ_STATUS_REG);
-   Serial.println(SPI.transfer(0),HEX);
-   FlashSSHigh();
-   
-   delay(5);
-   
-   FlashSSLow();
-   SPI.transfer(WRITE_ENABLE);
-   SPI.transfer(0x00);
-   FlashSSHigh();
-   
-   delay(5);
-   
-   FlashSSLow();
-   SPI.transfer(READ_STATUS_REG);
-   Serial.println(SPI.transfer(0),HEX);
-   FlashSSHigh();
-   */
   delay(5);
-
-  //SPI.transfer(WRITE_ENABLE);
-
-  /*for(int i = 0; i <= 255; i++){
-   pageIndex.val = i;
-   FlashSSLow();
-   SPI.transfer(PROGRAM_PAGE);
-   SPI.transfer(pageIndex.buffer[2]);
-   SPI.transfer(pageIndex.buffer[1]);
-   SPI.transfer(pageIndex.buffer[0]);
-   SPI.transfer((uint8_t)i);
-   FlashSSHigh();
-   delay(5);
-   }
-   pageIndex.val = 0;*/
 
   delay(5);
   FlashSSLow();
@@ -319,6 +241,9 @@ void FlashInit(){
   FlashSSLow();
   SPI.transfer(STATUS_WRITE);
   SPI.transfer(0x00);
+  FlashSSHigh();
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
   FlashSSHigh();
  
 }
