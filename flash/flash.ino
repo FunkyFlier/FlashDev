@@ -71,7 +71,7 @@ uint32_u completeAddress;
 uint8_t writeBuffer[256];
 
 boolean writeEnabled,deviceReady;
-
+  uint8_t statusRegister;
 void setup(){
   Serial.begin(115200);
 
@@ -197,6 +197,7 @@ void setup(){
 }
 
 void loop(){
+
 }
 
 void FlashInit(){
@@ -210,14 +211,14 @@ void FlashInit(){
 
 }
 boolean CheackStatusReg(){
-  uint8_t statusRegister;
+
   
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   statusRegister = SPI.transfer(0);
   FlashSSHigh();  
 
-  if (statusRegister & 0x01) == 0x01){
+  if ((statusRegister & 0x01) == 0x01){
     return false;
   }
   else{
@@ -241,14 +242,17 @@ void EraseChip(){
   FlashSSHigh();
 
   Serial.println(millis());
-  while( (statusByte & 0x01) == 0x01){
+  while(CheackStatusReg() == false){
+    Serial.println(statusRegister,HEX);
+  } 
+  /*while( (statusByte & 0x01) == 0x01){
     FlashSSLow();
     SPI.transfer(READ_STATUS_REG);
     statusByte = SPI.transfer(0);
     Serial.println(statusByte,HEX);
     FlashSSHigh();
     delay(5);
-  }
+  }*/
   Serial.println(millis());  
 }
 
@@ -278,14 +282,17 @@ boolean EraseBlock(uint32_t address){
   SPI.transfer(addressOutput.buffer[0]);
   FlashSSHigh();
   Serial.println(millis());
-  while( (statusByte & 0x01) == 0x01){
+  while(CheackStatusReg() == false){
+    Serial.println(statusRegister,HEX);
+  } 
+  /*while( (statusByte & 0x01) == 0x01){
     FlashSSLow();
     SPI.transfer(READ_STATUS_REG);
     statusByte = SPI.transfer(0);
     Serial.println(statusByte,HEX);
     FlashSSHigh();
     delay(5);
-  }
+  }*/
   Serial.println(millis());  
   return true;
 }
