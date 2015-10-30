@@ -209,7 +209,20 @@ void FlashInit(){
   FlashSSHigh();
 
 }
-void CheackStatusReg(){
+boolean CheackStatusReg(){
+  uint8_t statusRegister;
+  
+  FlashSSLow();
+  SPI.transfer(READ_STATUS_REG);
+  statusRegister = SPI.transfer(0);
+  FlashSSHigh();  
+
+  if (statusRegister & 0x01) == 0x01){
+    return false;
+  }
+  else{
+    return true;
+  }
 
 }
 void EraseChip(){
@@ -250,7 +263,7 @@ boolean EraseBlock(uint32_t address){
   if (addressLow != 0){
     return false;
   } 
-  
+
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
   FlashSSHigh();
@@ -276,6 +289,7 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
 
 
 
