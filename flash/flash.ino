@@ -92,11 +92,11 @@ void setup(){
   SPI.setDataMode(SPI_MODE0);
 
   pageIndex.val = 0;
-  
+
   FlashInit();
   Serial<<"begin erase\r\n";
   EraseChip();
-  
+
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   Serial.println(SPI.transfer(0),HEX);
@@ -133,7 +133,7 @@ void setup(){
   FlashSSHigh();
 
 
-  
+
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   Serial.println(SPI.transfer(0),HEX);
@@ -144,7 +144,7 @@ void setup(){
   SPI.transfer(WRITE_ENABLE);
   //SPI.transfer(0x00);
   FlashSSHigh();
-  
+
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   Serial.println(SPI.transfer(0),HEX);
@@ -178,57 +178,22 @@ void setup(){
   for(int i = 0; i <= 255; i++){
     Serial.println(buffer[i]);
   }
+  EraseBlock(0x00);
+  FlashSSLow();
+  SPI.transfer(READ_ARRAY);
+  SPI.transfer(pageIndex.buffer[2]);
+  SPI.transfer(pageIndex.buffer[1]);
+  SPI.transfer(pageIndex.buffer[0]);
+  for(int i = 0; i <= 255; i++){
+    buffer[i] = SPI.transfer(0);
+    //Serial.println(SPI.transfer(0),HEX);
+  }
 
-  /*FlashSSLow();
-   
-   SPI.transfer(READ_STATUS_REG);
-   Serial.println(SPI.transfer(0),HEX);
-   
-   FlashSSHigh();
-   
-   FlashSSLow();
-   SPI.transfer(STATUS_WRITE);
-   SPI.transfer(0);
-   SPI.transfer(WRITE_ENABLE);
-   SPI.transfer(READ_STATUS_REG);
-   Serial.println(SPI.transfer(0),HEX);
-   
-   FlashSSHigh();
-   
-   FlashSSLow();
-   SPI.transfer(WRITE_ENABLE);
-   FlashSSHigh();
-   
-   delay(100);
-   
-   FlashSSLow();
-   SPI.transfer(WRITE_ENABLE);
-   SPI.transfer(PROGRAM_PAGE);
-   SPI.transfer(pageIndex.buffer[2]);
-   SPI.transfer(pageIndex.buffer[1]);
-   SPI.transfer(pageIndex.buffer[0]);
-   for(int i = 0; i <= 255; i++){
-   SPI.transfer((uint8_t)i);
-   }
-   FlashSSHigh();
-   
-   delay(100);
-   
-   FlashSSLow();
-   SPI.transfer(READ_ARRAY);
-   SPI.transfer(pageIndex.buffer[2]);
-   SPI.transfer(pageIndex.buffer[1]);
-   SPI.transfer(pageIndex.buffer[0]);
-   for(int i = 0; i <= 255; i++){
-   buffer[i] = SPI.transfer(0);
-   //Serial.println(SPI.transfer(0),HEX);
-   }
-   
-   FlashSSHigh();
-   
-   for(int i = 0; i <= 255; i++){
-   Serial.println(buffer[i]);
-   }*/
+  FlashSSHigh();
+  Serial<<"qqqqq\r\n";
+  for(int i = 0; i <= 255; i++){
+    Serial.println(buffer[i]);
+  }
 }
 
 void loop(){
@@ -245,15 +210,15 @@ void FlashInit(){
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
   FlashSSHigh();
- 
+
 }
 void CheackStatusReg(){
-  
+
 }
 void EraseChip(){
- /* FlashSSLow();
+  FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
-  FlashSSHigh();*/
+  FlashSSHigh();
 
   FlashSSLow();
   SPI.transfer(ERASE_CHIP);
@@ -280,13 +245,21 @@ void EraseChip(){
 boolean EraseBlock(uint32_t address){
   uint16_t addressLow;
   uint32_u addressOutput;
+
   if (address > TOP_ADDRESS){
     return false;
   }
   addressLow = address & 0x00000FFF;
   if (addressLow != 0){
     return false;
-  }
+  } 
+  
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();
+
+
+
   addressOutput.val = address;
   FlashSSLow();
   SPI.transfer(ERASE_4K);
@@ -294,8 +267,19 @@ boolean EraseBlock(uint32_t address){
   SPI.transfer(addressOutput.buffer[1]);
   SPI.transfer(addressOutput.buffer[0]);
   FlashSSHigh();
+  Serial.println(millis());
+  while( (statusByte & 0x01) == 0x01){
+    FlashSSLow();
+    SPI.transfer(READ_STATUS_REG);
+    statusByte = SPI.transfer(0);
+    Serial.println(statusByte,HEX);
+    FlashSSHigh();
+    delay(5);
+  }
+  Serial.println(millis());  
   return true;
 }
+
 
 
 
