@@ -61,6 +61,15 @@ uint32_t addressIndex;
 uint8_t statusByte;
 float_u outFloat;
 
+
+uint16_t pageAddress;
+uint8_t  byteAddress;
+uint32_u completeAddress;
+
+uint8_t writeBuffer[256];
+
+boolean writeEnabled,deviceReady;
+
 void setup(){
   Serial.begin(115200);
 
@@ -81,10 +90,14 @@ void setup(){
   SPI.setDataMode(SPI_MODE0);
 
   pageIndex.val = 0;
-
+  
+  FlashInit();
+  Serial<<"begin erase\r\n";
   EraseChip();
-
-  delay(5);
+  
+  
+/*
+  //delay(5);
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
   //SPI.transfer(0x00);
@@ -94,7 +107,8 @@ void setup(){
   SPI.transfer(STATUS_WRITE);
   SPI.transfer(0x00);
   FlashSSHigh();
-
+  Serial<<"status reg\r\n";
+*/  
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   Serial.println(SPI.transfer(0),HEX);
@@ -194,6 +208,8 @@ void setup(){
   SPI.transfer(0x00);
   FlashSSHigh();
 
+
+  
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   Serial.println(SPI.transfer(0),HEX);
@@ -294,10 +310,23 @@ void setup(){
 void loop(){
 }
 
-void EraseChip(){
+void FlashInit(){
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
   FlashSSHigh();
+  FlashSSLow();
+  SPI.transfer(STATUS_WRITE);
+  SPI.transfer(0x00);
+  FlashSSHigh();
+ 
+}
+void CheackStatusReg(){
+  
+}
+void EraseChip(){
+ /* FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();*/
 
   FlashSSLow();
   SPI.transfer(ERASE_CHIP);
