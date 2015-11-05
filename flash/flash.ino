@@ -38,6 +38,14 @@
 
 #define TOP_ADDRESS 0x3FF000
 
+//first byte flags
+#define ERASED 0XFF
+#define WRITE_STARTED 0x7F
+#define WRITE_COMPLETE 0x3F
+
+uint16_t logNumber;
+
+
 typedef union{
   uint32_t val;
   uint8_t buffer[4];
@@ -71,7 +79,7 @@ uint32_u completeAddress;
 uint8_t writeBuffer[256];
 
 boolean writeEnabled,deviceReady;
-  uint8_t statusRegister;
+uint8_t statusRegister;
 void setup(){
   Serial.begin(115200);
 
@@ -197,6 +205,73 @@ void loop(){
 
 }
 
+void LoggingInit(){
+
+}
+
+boolean SearchForLastRecord(){
+
+}
+
+boolean SearchForFirstRecord(){
+
+}
+
+void FlashGetByte(uint32_t startingAddress){
+  uint32_u pgIndx;
+  pgIndx.val = startingAddress;
+  FlashSSLow();
+  SPI.transfer(READ_ARRAY);
+  SPI.transfer(pgIndx.buffer[2]);
+  SPI.transfer(pgIndx.buffer[1]);
+  SPI.transfer(pgIndx.buffer[0]);
+  for(int i = 0; i <= 0; i++){//remove
+    buffer[i] = SPI.transfer(0);
+    //Serial.println(SPI.transfer(0),HEX);
+  }
+
+  FlashSSHigh();
+}
+
+void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray){
+  uint32_u pgIndx;
+  pgIndx.val = startingAddress;
+  FlashSSLow();
+  SPI.transfer(READ_ARRAY);
+  SPI.transfer(pgIndx.buffer[2]);
+  SPI.transfer(pgIndx.buffer[1]);
+  SPI.transfer(pgIndx.buffer[0]);
+  for(int i = 0; i <= (sizeOfArray - 1); i++){
+    buffer[i] = SPI.transfer(0);
+    //Serial.println(SPI.transfer(0),HEX);
+  }
+
+  FlashSSHigh();
+}
+
+void FlashGetPage(uint32_t startingAddress){
+  uint32_u pgIndx;
+  pgIndx.val = startingAddress;
+  FlashSSLow();
+  SPI.transfer(READ_ARRAY);
+  SPI.transfer(pgIndx.buffer[2]);
+  SPI.transfer(pgIndx.buffer[1]);
+  SPI.transfer(pgIndx.buffer[0]);
+  for(int i = 0; i <= 255; i++){
+    buffer[i] = SPI.transfer(0);
+    //Serial.println(SPI.transfer(0),HEX);
+  }
+
+  FlashSSHigh();
+}
+
+void FlashWriteByte(uint32_t startingAddress){
+
+}
+
+void FlashWritePage(uint32_t startingAddress){
+
+}
 void FlashInit(){
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
@@ -209,7 +284,7 @@ void FlashInit(){
 }
 boolean CheackStatusReg(){
 
-  
+
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   statusRegister = SPI.transfer(0);
@@ -279,6 +354,7 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
 
 
 
