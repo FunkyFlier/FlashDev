@@ -206,11 +206,13 @@ void loop(){
 }
 
 void LoggingInit(){
-
+  SearchForLastRecord();
+  SearchForFirstRecord();
+  
 }
 
 boolean SearchForLastRecord(){
-
+  
 }
 
 boolean SearchForFirstRecord(){
@@ -266,11 +268,32 @@ void FlashGetPage(uint32_t startingAddress){
 }
 
 void FlashWriteByte(uint32_t startingAddress){
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();
 
 }
 
 void FlashWritePage(uint32_t startingAddress){
-
+  uint32_u pgIndx;
+  pgIndx.val = startingAddress;
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();
+  FlashSSLow();
+  SPI.transfer(READ_ARRAY);
+  SPI.transfer(pgIndx.buffer[2]);
+  SPI.transfer(pgIndx.buffer[1]);
+  SPI.transfer(pgIndx.buffer[0]);
+  for(int i = 0; i <= 255; i++){
+    SPI.transfer((uint8_t)i);
+  }
+  FlashSSHigh();
+}
+void WritePartialPage(uint32_t startingAddress, uint8_t numBytes){
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh(); 
 }
 void FlashInit(){
   FlashSSLow();
@@ -354,6 +377,7 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
 
 
 
