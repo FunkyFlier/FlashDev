@@ -42,7 +42,9 @@
 #define ERASED 0XFF
 #define WRITE_STARTED 0x7F
 #define WRITE_COMPLETE 0x3F
-
+#define WRITE_COMPLETE_REC_START 0x1F
+#define WRITE_COMPLETE_REC_END 0x0F
+#define START_OF_REC_LEN 7
 uint16_t logNumber;
 
 
@@ -80,6 +82,10 @@ uint8_t writeBuffer[256];
 
 boolean writeEnabled,deviceReady;
 uint8_t statusRegister;
+
+uint16_t currentRecordNumber,currentPageAddress;
+
+
 void setup(){
   Serial.begin(115200);
 
@@ -199,23 +205,145 @@ void setup(){
   for(int i = 0; i <= 255; i++){
     Serial.println(buffer[i]);
   }
+
+  //time to search the start of each page
+  Serial<<"start time\r\n";
+  Serial<<millis()<<"\r\n";
+  for(uint16_t i = 0; i <= 0x3FF; i++){
+    pageIndex.val = i << 8;
+    FlashSSLow();
+    SPI.transfer(READ_ARRAY);
+    SPI.transfer(pageIndex.buffer[2]);
+    SPI.transfer(pageIndex.buffer[1]);
+    SPI.transfer(pageIndex.buffer[0]);
+    //Serial.print(i);
+    //Serial.print(" ");
+    //Serial.println(SPI.transfer(0),HEX);
+    FlashSSHigh();
+  }
+  Serial<<millis()<<"\r\n";
+  Serial<<"end time\r\n";
+
+
+
 }
 
 void loop(){
+  /*
+  if (millis() - writeTimer > WRITE_TIME){
+   
+   }
+   if (writeFlash == true){
+   switch(writeState){
+   case CHECK_FIRST_BYTE:
+   break;
+   case WRITE_BUFFER:
+   break;
+   case 
+   
+   }
+   }*/
 
 }
+void FlashInit(){
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();
+  FlashSSLow();
+  SPI.transfer(STATUS_WRITE);
+  SPI.transfer(0x00);
+  FlashSSHigh();
 
+}
 void LoggingInit(){
   SearchForLastRecord();
   SearchForFirstRecord();
-  
+
 }
 
-boolean SearchForLastRecord(){
-  
+void SearchForLastRecord(){
+  uint8_t  firstByte;
+  uint16_t recordNumber,lasPageAddress;
+  boolean validRecord;
+  uint32_u fullAddress;
+  for(uint16_t i = 0; i <= 0x3FFF; i++){
+    fullAddress.val = i << 8;
+    FlashSSLow();
+    SPI.transfer(READ_ARRAY);
+    SPI.transfer(fullAddress.buffer[2]);
+    SPI.transfer(fullAddress.buffer[1]);
+    SPI.transfer(fullAddress.buffer[0]);
+    firstByte = SPI.transfer(0);
+    FlashSSHigh();
+    if (firstByte == WRITE_COMPLETE_REC_START){
+      validRecord = GetRecordNumber(&i,&recordNumber,&lasPageAddress);
+      if(validRecord == true){
+
+        if (recordNumber >= currentRecordNumber){
+          currentRecordNumber = recordNumber + 1;
+          currentPageAddress = lasPageAddress + 1;
+        }
+
+      }
+    }
+
+  }
+
 }
 
-boolean SearchForFirstRecord(){
+boolean GetRecordNumber(uint16_t* index, uint16_t* recordNumber,uint16_t* endAddress){
+  uint16_u inInt16;
+  uint32_u fullAddress;
+  uint8_t StartOfRecordBuffer[START_OF_REC_LEN];
+
+
+  fullAddress = (index << 8) + 1;
+  FlashSSLow();
+  SPI.transfer(READ_ARRAY);
+  SPI.transfer(fullAddress.buffer[2]);
+  SPI.transfer(fullAddress.buffer[1]);
+  SPI.transfer(fullAddress.buffer[0]);
+  for(uint8_t i = 0; i < START_OF_REC_LEN; i++){
+    StartOfRecordBuffer[i] = SPI.transfer(0);
+    switch(i){
+    case 0:
+      if (StartOfRecordBuffer[i] != 0xAA){
+        return false;
+      }
+      break;
+    case 1:
+      inInt16[0] = StartOfRecordBuffer[i];
+      break;
+    case 2:
+      inInt16[1] = StartOfRecordBuffer[i];
+      break;
+    case 3://record complete
+
+      break;
+    case 4://last page LSB
+
+      break;
+    case 5://last page LSB
+
+      break;
+    case 6:
+      if (StartOfRecordBuffer[i] != 0x55){
+        return true;
+      }
+      else{
+        return false;
+      }
+      break;
+    }
+  }
+  FlashSSHigh();
+
+
+
+
+}
+
+void SearchForFirstRecord(){
 
 }
 
@@ -295,16 +423,7 @@ void WritePartialPage(uint32_t startingAddress, uint8_t numBytes){
   SPI.transfer(WRITE_ENABLE);
   FlashSSHigh(); 
 }
-void FlashInit(){
-  FlashSSLow();
-  SPI.transfer(WRITE_ENABLE);
-  FlashSSHigh();
-  FlashSSLow();
-  SPI.transfer(STATUS_WRITE);
-  SPI.transfer(0x00);
-  FlashSSHigh();
 
-}
 boolean CheackStatusReg(){
 
 
@@ -377,6 +496,14 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
+
+
+
+
+
+
+
 
 
 
