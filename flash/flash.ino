@@ -339,6 +339,20 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
         }
         break;
       case WRITE_COMPLETE_REC_START://check to see if next page is same number
+        if (searchAddress.val != *index << 8){
+          endOfRecordFound = true;
+          if (searchAddress.val == 0){
+            searchAddress.val = 0x3FFF;
+          }else{
+            searchAddress.val -= 0x100;
+          }
+          endAddress.val =  searchAddress.val >> 8;
+          FlashWriteByte(searchAddress.val,WRITE_COMPLETE_REC_END);
+          startingAddress.val = *index << 8;
+          FlashWriteByte(startingAddress.val + 4,0x00);
+          FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+          FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+        }
         searchAddress.val += 0x100;
         if (searchAddress.val > 0x3FFF00){
           searchAddress.val -= 0x3FFF00;
