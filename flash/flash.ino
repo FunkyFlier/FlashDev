@@ -44,9 +44,17 @@
 #define WRITE_COMPLETE 0x3F
 #define WRITE_COMPLETE_REC_START 0x1F
 #define WRITE_COMPLETE_REC_END 0x0F
+#define WRITE_COMPLETE_REC_START_END 0x07
 #define START_OF_REC_LEN 7
+
+
 uint16_t logNumber;
 
+typedef union{
+  uint16_t val;
+  uint8_t buffer[2];
+}
+uint16_u;
 
 typedef union{
   uint32_t val;
@@ -257,14 +265,14 @@ void FlashInit(){
 }
 void LoggingInit(){
   SearchForLastRecord();
-  SearchForFirstRecord();
+  //SearchForFirstRecord();
 
 }
 
 void SearchForLastRecord(){
   uint8_t  firstByte;
   uint16_t recordNumber,lasPageAddress;
-  boolean validRecord;
+  boolean validRecord,recordComplete;
   uint32_u fullAddress;
   for(uint16_t i = 0; i <= 0x3FFF; i++){
     fullAddress.val = i << 8;
@@ -276,12 +284,19 @@ void SearchForLastRecord(){
     firstByte = SPI.transfer(0);
     FlashSSHigh();
     if (firstByte == WRITE_COMPLETE_REC_START){
-      validRecord = GetRecordNumber(&i,&recordNumber,&lasPageAddress);
+      validRecord = GetRecordNumber(&i,&recordNumber,&lasPageAddress,&recordComplete);
       if(validRecord == true){
-
-        if (recordNumber >= currentRecordNumber){
+        //look for lowest record?
+        if (recordNumber >= currentRecordNumber){ 
           currentRecordNumber = recordNumber + 1;
           currentPageAddress = lasPageAddress + 1;
+        }
+        if (recordNumber == 0xFFFF){
+          currentRecordNumber = 0;
+          currentPageAddress = 0;
+        }
+        if (recordComplete == false){
+          CompleteRecord(&i,&recordNumber);
         }
 
       }
@@ -291,13 +306,52 @@ void SearchForLastRecord(){
 
 }
 
-boolean GetRecordNumber(uint16_t* index, uint16_t* recordNumber,uint16_t* endAddress){
+void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
+  boolean endOfRecordFound = false;
+  uint8_t startByte;
+  uint16_t searchCount = 0;
+  uint16_u recordNumber;
+  uint32_u searchAddress;
+  while(endOfRecordFound == false && searchCount != 0x3FFF){
+    searchAddress.val = (*index + searchCount) << 8;
+    if (searchAddress.val > 0x3FFF00){
+      searchAddress.val -= 0x3FFF00;
+    }
+    startByte = FlashGetByte(searchAddress.val);
+    if (startByte =< 0x3F){
+      switch(startByte){
+      case WRITE_COMPLETE://verify record number
+        FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+        break;
+      case WRITE_COMPLETE_REC_START://check to see if next page is same number
+        searchAddress.val += 0x100;
+        if (searchAddress.val > 0x3FFF00){
+          searchAddress.val -= 0x3FFF00;
+        }
+        FlashGetArray(searchAddress.val + 0x101,2,&recordNumber.buffer);
+        break;
+      case WRITE_COMPLETE_REC_END://
+        FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+        break;
+      default:
+        //invalid start byte set previous page # to end of record
+        break;
+      }
+    }
+    if (searchAddress.val == *index - 1){
+      //todo last possible address handling
+    }
+    searchCount++;
+  }
+}
+
+boolean GetRecordNumber(uint16_t *index, uint16_t *recordNumber, uint16_t *endAddress, uint8_t *recordComplete){
   uint16_u inInt16;
   uint32_u fullAddress;
   uint8_t StartOfRecordBuffer[START_OF_REC_LEN];
 
 
-  fullAddress = (index << 8) + 1;
+  fullAddress = (*index << 8) + 1;
   FlashSSLow();
   SPI.transfer(READ_ARRAY);
   SPI.transfer(fullAddress.buffer[2]);
@@ -312,19 +366,33 @@ boolean GetRecordNumber(uint16_t* index, uint16_t* recordNumber,uint16_t* endAdd
       }
       break;
     case 1:
-      inInt16[0] = StartOfRecordBuffer[i];
+      inInt16.buffer[0] = StartOfRecordBuffer[i];
       break;
     case 2:
-      inInt16[1] = StartOfRecordBuffer[i];
+      inInt16.buffer[1] = StartOfRecordBuffer[i];
+      *recordNumber = inInt16.val;
       break;
     case 3://record complete
-
+      if (StartOfRecordBuffer[i] == 0x00){
+        *recordComplete = true;
+      }
+      else{
+        *recordComplete = false;
+      }
       break;
     case 4://last page LSB
-
+      if (*recordComplete == true){
+        inInt16.buffer[0] = StartOfRecordBuffer[i];
+      }
       break;
     case 5://last page LSB
-
+      if (*recordComplete == true){
+        inInt16.buffer[1] = StartOfRecordBuffer[i];
+        *endAddress = inInt16.val;
+      }
+      else{
+        *endAddress = 0;
+      }
       break;
     case 6:
       if (StartOfRecordBuffer[i] != 0x55){
@@ -343,11 +411,11 @@ boolean GetRecordNumber(uint16_t* index, uint16_t* recordNumber,uint16_t* endAdd
 
 }
 
-void SearchForFirstRecord(){
+/*void SearchForFirstRecord(){
+ 
+ }*/
 
-}
-
-void FlashGetByte(uint32_t startingAddress){
+uint8_t FlashGetByte(uint32_t startingAddress){
   uint32_u pgIndx;
   pgIndx.val = startingAddress;
   FlashSSLow();
@@ -355,15 +423,12 @@ void FlashGetByte(uint32_t startingAddress){
   SPI.transfer(pgIndx.buffer[2]);
   SPI.transfer(pgIndx.buffer[1]);
   SPI.transfer(pgIndx.buffer[0]);
-  for(int i = 0; i <= 0; i++){//remove
-    buffer[i] = SPI.transfer(0);
-    //Serial.println(SPI.transfer(0),HEX);
-  }
+  return SPI.transfer(0);
 
   FlashSSHigh();
 }
 
-void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray){
+void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray, uint8_t *outputArray){
   uint32_u pgIndx;
   pgIndx.val = startingAddress;
   FlashSSLow();
@@ -372,7 +437,7 @@ void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray){
   SPI.transfer(pgIndx.buffer[1]);
   SPI.transfer(pgIndx.buffer[0]);
   for(int i = 0; i <= (sizeOfArray - 1); i++){
-    buffer[i] = SPI.transfer(0);
+    *outputArray[i] = SPI.transfer(0);
     //Serial.println(SPI.transfer(0),HEX);
   }
 
@@ -496,6 +561,7 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
 
 
 
