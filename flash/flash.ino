@@ -319,76 +319,98 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
       searchAddress.val -= 0x3FFF00;
     }
     startByte = FlashGetByte(searchAddress.val);
-    if (startByte <= WRITE_COMPLETE){
-      switch(startByte){
-      case WRITE_COMPLETE://verify record number
-        FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
-        if (recordNumber.val != *startingRecordNumber){
-          endOfRecordFound = true;
-          searchAddress.val -= 0x100;
-          while(CheackStatusReg() == false){
-          }
-          FlashWriteByte(searchAddress.val,WRITE_COMPLETE_REC_END);
-          while(CheackStatusReg() == false){
-          }
-          endAddress.val =  searchAddress.val >> 8;
-          startingAddress.val = *index << 8;
-          FlashWriteByte(startingAddress.val + 4,0x00);
-          FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
-          FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+    switch(startByte){
+    case WRITE_COMPLETE://verify record number
+      FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+      if (recordNumber.val != *startingRecordNumber){
+        endOfRecordFound = true;
+        searchAddress.val -= 0x100;
+        while(CheackStatusReg() == false){
         }
-        break;
-      case WRITE_COMPLETE_REC_START://check to see if next page is same number
-        if (searchAddress.val != *index << 8){
-          endOfRecordFound = true;
-          if (searchAddress.val == 0){
-            searchAddress.val = 0x3FFF;
-          }else{
-            searchAddress.val -= 0x100;
-          }
-          endAddress.val =  searchAddress.val >> 8;
-          FlashWriteByte(searchAddress.val,WRITE_COMPLETE_REC_END);
-          startingAddress.val = *index << 8;
-          FlashWriteByte(startingAddress.val + 4,0x00);
-          FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
-          FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+        FlashWriteByte(searchAddress.val,WRITE_COMPLETE_REC_END);
+        while(CheackStatusReg() == false){
         }
-        searchAddress.val += 0x100;
-        if (searchAddress.val > 0x3FFF00){
-          searchAddress.val -= 0x3FFF00;
-        }
-        FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
-        if (recordNumber.val != *startingRecordNumber){
-          endOfRecordFound = true;
-          while(CheackStatusReg() == false){
-          }
-          startingAddress.val = *index << 8;
-          FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
-          endAddress.val =  *index;
-          FlashWriteByte(startingAddress.val + 4,0x00);
-          FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
-          FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
-        }
-        break;
-      case WRITE_COMPLETE_REC_END://
-        FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
-        if (recordNumber.val != *startingRecordNumber){
-          endOfRecordFound = true;
-          while(CheackStatusReg() == false){
-          }
-          startingAddress.val = *index << 8;
-          FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
-          endAddress.val =  searchAddress;
-          FlashWriteByte(startingAddress.val + 4,0x00);
-          FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
-          FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
-        }
-        break;
-      default:
-        //invalid start byte set previous page # to end of record
-        break;
+        endAddress.val =  searchAddress.val >> 8;
+        startingAddress.val = *index << 8;
+        FlashWriteByte(startingAddress.val + 4,0x00);
+        FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+        FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
       }
+      break;
+    case WRITE_COMPLETE_REC_START://check to see if next page is same number
+      if (searchAddress.val != *index << 8){
+        endOfRecordFound = true;
+        if (searchAddress.val == 0){
+          searchAddress.val = 0x3FFF;
+        }
+        else{
+          searchAddress.val -= 0x100;
+        }
+        endAddress.val =  searchAddress.val >> 8;
+        FlashWriteByte(searchAddress.val,WRITE_COMPLETE_REC_END);
+        startingAddress.val = *index << 8;
+        FlashWriteByte(startingAddress.val + 4,0x00);
+        FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+        FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+      }
+      searchAddress.val += 0x100;
+      if (searchAddress.val > 0x3FFF00){
+        searchAddress.val -= 0x3FFF00;
+      }
+      FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+      if (recordNumber.val != *startingRecordNumber){
+        endOfRecordFound = true;
+        while(CheackStatusReg() == false){
+        }
+        startingAddress.val = *index << 8;
+        FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
+        endAddress.val =  *index;
+        FlashWriteByte(startingAddress.val + 4,0x00);
+        FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+        FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+      }
+      break;
+    case WRITE_COMPLETE_REC_END://
+      FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+      if (recordNumber.val != *startingRecordNumber){
+        endOfRecordFound = true;
+        while(CheackStatusReg() == false){
+        }
+        startingAddress.val = *index << 8;
+        FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
+        endAddress.val =  searchAddress >> 8;
+        FlashWriteByte(startingAddress.val + 4,0x00);
+        FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+        FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+      }
+      break;
+    default:
+      endOfRecordFound = true;
+      if (searchAddress - 0x100 == *index){
+        while(CheackStatusReg() == false){
+        }
+        startingAddress.val = *index << 8;
+        FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
+        endAddress.val =  *index;
+        FlashWriteByte(startingAddress.val + 4,0x00);
+        FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+        FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+      }
+      else{
+        endOfRecordFound = true;
+        while(CheackStatusReg() == false){
+        }
+        startingAddress.val = *index << 8;
+        FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
+        endAddress.val =  *index;
+        FlashWriteByte(startingAddress.val + 4,0x00);
+        FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
+        FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
+      }
+
+      break;
     }
+
     if (searchAddress.val == *index - 1){
       //todo last possible address handling
     }
@@ -622,6 +644,10 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
+
+
+
 
 
 
