@@ -321,7 +321,7 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
     startByte = FlashGetByte(searchAddress.val);
     switch(startByte){
     case WRITE_COMPLETE://verify record number
-      FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+      FlashGetArray(searchAddress.val + 1,2,recordNumber.buffer);
       if (recordNumber.val != *startingRecordNumber){
         endOfRecordFound = true;
         searchAddress.val -= 0x100;
@@ -357,7 +357,7 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
       if (searchAddress.val > 0x3FFF00){
         searchAddress.val -= 0x3FFF00;
       }
-      FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+      FlashGetArray(searchAddress.val + 1,2,recordNumber.buffer);
       if (recordNumber.val != *startingRecordNumber){
         endOfRecordFound = true;
         while(CheackStatusReg() == false){
@@ -371,14 +371,14 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
       }
       break;
     case WRITE_COMPLETE_REC_END://
-      FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+      FlashGetArray(searchAddress.val + 1,2,recordNumber.buffer);
       if (recordNumber.val != *startingRecordNumber){
         endOfRecordFound = true;
         while(CheackStatusReg() == false){
         }
         startingAddress.val = *index << 8;
         FlashWriteByte(startingAddress.val,WRITE_COMPLETE_REC_END);
-        endAddress.val =  searchAddress >> 8;
+        endAddress.val =  searchAddress.val >> 8;
         FlashWriteByte(startingAddress.val + 4,0x00);
         FlashWriteByte(startingAddress.val + 5,endAddress.buffer[0]);
         FlashWriteByte(startingAddress.val + 6,endAddress.buffer[1]);
@@ -386,7 +386,7 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
       break;
     default:
       endOfRecordFound = true;
-      if (searchAddress - 0x100 == *index){
+      if (searchAddress.val - 0x100 == *index){
         while(CheackStatusReg() == false){
         }
         startingAddress.val = *index << 8;
@@ -428,7 +428,7 @@ boolean GetRecordNumber(uint16_t *index, uint16_t *recordNumber, uint16_t *endAd
   uint8_t StartOfRecordBuffer[START_OF_REC_LEN];
 
 
-  fullAddress = (*index << 8) + 1;
+  fullAddress.val = (*index << 8) + 1;
   FlashSSLow();
   SPI.transfer(READ_ARRAY);
   SPI.transfer(fullAddress.buffer[2]);
@@ -505,7 +505,7 @@ uint8_t FlashGetByte(uint32_t startingAddress){
   FlashSSHigh();
 }
 
-void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray, uint8_t *outputArray){
+void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray, uint8_t outputArray[]){
   uint32_u pgIndx;
   pgIndx.val = startingAddress;
   FlashSSLow();
@@ -514,7 +514,7 @@ void FlashGetArray(uint32_t startingAddress, uint8_t sizeOfArray, uint8_t *outpu
   SPI.transfer(pgIndx.buffer[1]);
   SPI.transfer(pgIndx.buffer[0]);
   for(int i = 0; i <= (sizeOfArray - 1); i++){
-    *outputArray[i] = SPI.transfer(0);
+    outputArray[i] = SPI.transfer(0);
     //Serial.println(SPI.transfer(0),HEX);
   }
 
