@@ -237,20 +237,21 @@ void setup(){
 }
 
 void loop(){
-  /*
-  if (millis() - writeTimer > WRITE_TIME){
-   
-   }
-   if (writeFlash == true){
-   switch(writeState){
-   case CHECK_FIRST_BYTE:
-   break;
-   case WRITE_BUFFER:
-   break;
-   case 
-   
-   }
-   }*/
+  FlashLogStateMachine();
+}
+
+void FlashLogStateMachine(){
+
+  static uint8_t loggingState = 0;
+
+  switch (loggingState){
+  case WAIT_FOR_WRITE_READY:
+    break;
+  case BOUNDARY_CHECK:
+    break;
+  case ASSEMBLE_WRITE_BUFFER:
+    break;
+  }
 
 }
 void FlashInit(){
@@ -266,7 +267,7 @@ void FlashInit(){
 void LoggingInit(){
   SearchForLastRecord();
   //SearchForFirstRecord();
-
+  //set flash logging rates / types of data
 }
 
 void SearchForLastRecord(){
@@ -308,7 +309,7 @@ void SearchForLastRecord(){
 
 void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
   boolean endOfRecordFound = false;
-  uint8_t startByte,tempByte;
+  uint8_t startByte;
   uint16_t searchCount = 0;
   uint16_u recordNumber,endAddress;
   uint32_u searchAddress,startingAddress;
@@ -482,7 +483,7 @@ boolean GetRecordNumber(uint16_t *index, uint16_t *recordNumber, uint16_t *endAd
     }
   }
   FlashSSHigh();
-
+  return false;
 
 
 
@@ -644,6 +645,8 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
+
 
 
 
