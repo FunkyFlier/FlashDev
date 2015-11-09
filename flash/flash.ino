@@ -43,8 +43,8 @@
 #define WRITE_STARTED 0x7F
 #define WRITE_COMPLETE 0x3F
 #define WRITE_COMPLETE_REC_START 0x1F
-#define WRITE_COMPLETE_REC_END 0x0F
-#define WRITE_COMPLETE_REC_START_END 0x07
+#define WRITE_COMPLETE_REC_END 0x2F
+#define WRITE_COMPLETE_REC_START_END 0x0F
 #define START_OF_REC_LEN 7
 
 
@@ -312,16 +312,21 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
   uint16_t searchCount = 0;
   uint16_u recordNumber;
   uint32_u searchAddress;
-  while(endOfRecordFound == false && searchCount != 0x3FFF){
+  while(endOfRecordFound == false){
+    
     searchAddress.val = (*index + searchCount) << 8;
     if (searchAddress.val > 0x3FFF00){
       searchAddress.val -= 0x3FFF00;
     }
     startByte = FlashGetByte(searchAddress.val);
-    if (startByte =< 0x3F){
+    if (startByte =< WRITE_COMPLETE){
       switch(startByte){
       case WRITE_COMPLETE://verify record number
         FlashGetArray(searchAddress.val + 1,2,&recordNumber.buffer);
+        if (recordNumber.val != *startingRecordNumber){
+          endOfRecordFound = true;
+          
+        }
         break;
       case WRITE_COMPLETE_REC_START://check to see if next page is same number
         searchAddress.val += 0x100;
@@ -342,6 +347,9 @@ void CompleteRecord(uint16_t *index,uint16_t *startingRecordNumber){
       //todo last possible address handling
     }
     searchCount++;
+    if (searchCount == 0x4000){
+      endOfRecordFound = true;
+    }
   }
 }
 
