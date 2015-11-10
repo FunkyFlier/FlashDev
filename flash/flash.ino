@@ -91,7 +91,9 @@ uint8_t writeBuffer[256];
 boolean writeEnabled,deviceReady;
 uint8_t statusRegister;
 
-uint16_t currentRecordNumber,currentPageAddress;
+uint16_t currentRecordNumber, currentPageAddress,
+lowestRecordNumber,  lowestRecordAddress;
+//nextRecordNumber,    nextRecordAddress;
 
 
 void setup(){
@@ -246,6 +248,9 @@ void FlashLogStateMachine(){
 
   switch (loggingState){
   case WAIT_FOR_WRITE_READY:
+    if (CheackStatusReg() == true){
+      loggingState = BOUNDARY_CHECK;
+    }
     break;
   case BOUNDARY_CHECK:
     break;
@@ -265,10 +270,16 @@ void FlashInit(){
 
 }
 void LoggingInit(){
-  SearchForLastRecord();
+  SearchForLastRecord();//make search for first and last record?
+  //VerifyPageErasure();
   //SearchForFirstRecord();
   //set flash logging rates / types of data
 }
+
+/*void VerifyPageErasure(){
+  //this function will finalize flash address pointers
+  
+}*/
 
 void SearchForLastRecord(){
   uint8_t  firstByte;
@@ -287,19 +298,22 @@ void SearchForLastRecord(){
     if (firstByte == WRITE_COMPLETE_REC_START){
       validRecord = GetRecordNumber(&i,&recordNumber,&lasPageAddress,&recordComplete);
       if(validRecord == true){
-        //look for lowest record?
+        if (recordComplete == false){
+          CompleteRecord(&i,&recordNumber);
+        }
         if (recordNumber >= currentRecordNumber){ 
           currentRecordNumber = recordNumber + 1;
           currentPageAddress = lasPageAddress + 1;
         }
-        if (recordNumber == 0xFFFF){
+        if (recordNumber == 0xFFFF){//or 3FFF?
           currentRecordNumber = 0;
           currentPageAddress = 0;
         }
-        if (recordComplete == false){
-          CompleteRecord(&i,&recordNumber);
-        }
 
+        if (recordNumber <= lowestRecordNumber){
+          lowestRecordNumber = recordNumber;
+          lowestRecordAddress = i;
+        }
       }
     }
 
@@ -645,6 +659,7 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
 
 
 
