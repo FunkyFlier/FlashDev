@@ -45,6 +45,7 @@
 #define WRITE_COMPLETE_REC_START 0x1F
 #define WRITE_COMPLETE_REC_END 0x2F
 #define WRITE_COMPLETE_REC_START_END 0x0F
+#define TO_ERASE 0x00
 #define START_OF_REC_LEN 7
 
 
@@ -247,13 +248,14 @@ void FlashLogStateMachine(){
   static uint8_t loggingState = 0;
 
   switch (loggingState){
+  case BOUNDARY_CHECK:
+    break;
   case WAIT_FOR_WRITE_READY:
     if (CheackStatusReg() == true){
       loggingState = BOUNDARY_CHECK;
     }
     break;
-  case BOUNDARY_CHECK:
-    break;
+
   case ASSEMBLE_WRITE_BUFFER:
     break;
   }
@@ -271,15 +273,31 @@ void FlashInit(){
 }
 void LoggingInit(){
   SearchForLastRecord();//make search for first and last record?
-  //VerifyPageErasure();
+  VerifyPageErasure();
   //SearchForFirstRecord();
   //set flash logging rates / types of data
 }
 
-/*void VerifyPageErasure(){
+void VerifyPageErasure(){
   //this function will finalize flash address pointers
-  
-}*/
+  uint16_t pageToErase;
+  if ( (currentPage & 0x000F) == 0){
+    //starting page is on the block boundary 
+    EraseBlock(currentPage);
+  }
+  else{
+    //starting page is in the middle of a block
+    //check to see if the rest of the pages in the block are erased
+    //if not erased set all to zero and erase next block
+    pageToErase = currentPage;
+    while( (pageToErase & 0x000F) != 0){
+      FlashClearPage(pageToErase);
+      pageToErase++;
+    }
+    EraseBlock(pageToErase);
+    currentPage = pageToErase;
+  }
+}
 
 void SearchForLastRecord(){
   uint8_t  firstByte;
@@ -295,7 +313,7 @@ void SearchForLastRecord(){
     SPI.transfer(fullAddress.buffer[0]);
     firstByte = SPI.transfer(0);
     FlashSSHigh();
-    if (firstByte == WRITE_COMPLETE_REC_START){
+    if (firstByte == WRITE_COMPLETE_REC_START || firstByte == WRITE_COMPLETE_REC_START_END){
       validRecord = GetRecordNumber(&i,&recordNumber,&lasPageAddress,&recordComplete);
       if(validRecord == true){
         if (recordComplete == false){
@@ -565,26 +583,56 @@ void FlashWriteByte(uint32_t startingAddress,uint8_t data){
 
 }
 
-void FlashWritePage(uint32_t startingAddress){
+void FlashWritePage(uint32_t startingAddress, uint8_t buffer[]){
   uint32_u pgIndx;
   pgIndx.val = startingAddress;
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
   FlashSSHigh();
   FlashSSLow();
-  SPI.transfer(READ_ARRAY);
+  SPI.transfer(PROGRAM_PAGE);
   SPI.transfer(pgIndx.buffer[2]);
   SPI.transfer(pgIndx.buffer[1]);
   SPI.transfer(pgIndx.buffer[0]);
   for(int i = 0; i <= 255; i++){
-    SPI.transfer((uint8_t)i);
+    SPI.transfer(buffer[i]);
   }
   FlashSSHigh();
 }
-void WritePartialPage(uint32_t startingAddress, uint8_t numBytes){
+void WritePartialPage(uint32_t startingAddress, uint8_t numBytes, uint8_t buffer){
+  //to do check for boundary conditions and wrap around
+  uint32_u pgIndx;
+  pgIndx.val = startingAddress;
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
-  FlashSSHigh(); 
+  FlashSSHigh();
+  FlashSSLow();
+  SPI.transfer(PROGRAM_PAGE);
+  SPI.transfer(pgIndx.buffer[2]);
+  SPI.transfer(pgIndx.buffer[1]);
+  SPI.transfer(pgIndx.buffer[0]);
+  for(int i = 0; i <= numBytes; i++){
+    SPI.transfer(buffer[i]);
+  }
+  FlashSSHigh();
+}
+
+void FlashClearPage(uint32_t startingAddress){
+  //to do check for boundary conditions and wrap around
+  uint32_u pgIndx;
+  pgIndx.val = startingAddress;
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();
+  FlashSSLow();
+  SPI.transfer(PROGRAM_PAGE);
+  SPI.transfer(pgIndx.buffer[2]);
+  SPI.transfer(pgIndx.buffer[1]);
+  SPI.transfer(pgIndx.buffer[0]);
+  for(int i = 0; i <= numBytes; i++){
+    SPI.transfer(0x00);
+  }
+  FlashSSHigh();  
 }
 
 boolean CheackStatusReg(){
@@ -626,7 +674,7 @@ void EraseChip(){
   Serial.println(millis());  
 }
 
-boolean EraseBlock(uint32_t address){
+boolean EraseBlock(uint32_t address){//need to return anything?
   uint16_t addressLow;
   uint32_u addressOutput;
 
@@ -659,6 +707,8 @@ boolean EraseBlock(uint32_t address){
   Serial.println(millis());  
   return true;
 }
+
+
 
 
 
