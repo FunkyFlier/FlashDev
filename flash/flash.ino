@@ -249,17 +249,27 @@ void FlashLogStateMachine(){
 
   switch (loggingState){
   case BOUNDARY_CHECK:
+    CheckBlockBounds(currentPageAddress);
     break;
   case WAIT_FOR_WRITE_READY:
     if (CheackStatusReg() == true){
       loggingState = BOUNDARY_CHECK;
     }
     break;
-
   case ASSEMBLE_WRITE_BUFFER:
+    break;
+  case WRITE_BUFFER_TO_ROM:
+    
     break;
   }
 
+}
+
+void CheckBlockBounds(uint16_t startingAddress){
+  uint16_t pageToErase;
+  if ( (startingAddress & 0x000F) == 0){
+    //check to see if each start byte is 0xFF and erase if not
+  }
 }
 void FlashInit(){
   FlashSSLow();
@@ -707,6 +717,7 @@ boolean EraseBlock(uint32_t address){//need to return anything?
   Serial.println(millis());  
   return true;
 }
+
 
 
 
