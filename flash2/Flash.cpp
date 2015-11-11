@@ -21,7 +21,7 @@ void FlashWritePage(uint16_t, uint8_t);
 #define 64K_BLOCK_MASK 0x0FFF
 boolean FlashEraseBlock4k(uint16_t blockAddress){
   //returns false on invalid block address
-  
+    
 }
 void FlashEraseBlock32k(uint16_t blockAddress){
 }
@@ -36,12 +36,25 @@ boolean FlashEraseChip(){
   SPI.transfer(ERASE_CHIP);
   FlashSSHigh();
 
-  while(CheackStatusReg() == false){
+  while(FlashCheckStatusReg() == false){
   } 
 
 }
 
 boolean FlashCheckStatusReg(){
+
+  FlashSSLow();
+  SPI.transfer(READ_STATUS_REG);
+  statusRegister = SPI.transfer(0);
+  FlashSSHigh();  
+
+  if ((statusRegister & 0x01) == 0x01){
+    return false;
+  }
+  else{
+    return true;
+  }
+
 }
 
 uint8_t FlashGetByte(uint32_t byteAddress){
