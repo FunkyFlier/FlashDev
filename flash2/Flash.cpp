@@ -28,6 +28,17 @@ void FlashEraseBlock32k(uint16_t blockAddress){
 void FlashEraseBlock64k(uint16_t blockAddress){
 }
 boolean FlashEraseChip(){
+  FlashSSLow();
+  SPI.transfer(WRITE_ENABLE);
+  FlashSSHigh();
+
+  FlashSSLow();
+  SPI.transfer(ERASE_CHIP);
+  FlashSSHigh();
+
+  while(CheackStatusReg() == false){
+  } 
+
 }
 
 boolean FlashCheckStatusReg(){
