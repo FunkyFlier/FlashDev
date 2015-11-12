@@ -158,6 +158,15 @@ uint8_t GetStatusReg(){
   //return 2 device ready write enabled 
   //return 3 device busy write enabled 
 }
+void DispStatRegs(){
+    uint8_t inByte1,inByte2;
+  FlashSSLow();
+  SPI.transfer(READ_STATUS_REG);
+  inByte1 = SPI.transfer(0);
+  inByte2 = SPI.transfer(0);
+  FlashSSHigh(); 
+  Serial<<"SB1: "<<_HEX(inByte1)<<"\r\nSB2: "<<_HEX(inByte2)<<"\r\n";
+}
 
 
 uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
@@ -204,7 +213,9 @@ boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]
   if (numBytes != 256){
     return false;
   }
-  addressOutput.val == (pageAddress << 8);
+  addressOutput.val = (pageAddress << 8);
+  Serial<<"addr output val: "<<addressOutput.val<<"\r\n";
+  Serial<<"***: "<<_HEX(addressOutput.buffer[2])<<","<<_HEX(addressOutput.buffer[1])<<","<<_HEX(addressOutput.buffer[0])<<"\r\n";
   FlashSSLow();
   SPI.transfer(READ_ARRAY);
   SPI.transfer(addressOutput.buffer[2]);

@@ -78,8 +78,19 @@ void FlashDump(){
   //Serial<<"a\r\n";
   for(uint16_t i = 0; i <= 5; i++){
     //Serial<<"b\r\n";
+    for(uint16_t j = 0; j < 256; j++){
+      outputArray[j] = 0;
+    }
+    while(VerifyWriteReady() == false){
+      Serial<<"dump write ready\r\n";
+      DispStatRegs();
+      //Serial<<_HEX(GetStatusReg())<<"\r\n";
+      //Serial<<millis()<<"\r\n";
+      //delay(1000);
+    }
     if (FlashGetPage(i,sizeof(outputArray),outputArray) == false){
       Serial<<"failed to get page\r\n";
+      while(1){}
     }
     else{
       Serial<<"----- "<<i<<"\r\n";

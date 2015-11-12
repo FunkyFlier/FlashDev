@@ -23,6 +23,6 @@ boolean FlashWriteByte(uint16_t,uint16_t, uint8_t);
 boolean FlashWritePartialPage(uint16_t,uint8_t, uint16_t, uint8_t*);
 boolean FlashWritePage(uint16_t, uint16_t, uint8_t*);
 
-
+void DispStatRegs();
 
 #endif
