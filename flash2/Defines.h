@@ -24,7 +24,8 @@
 #define ERASE_4K 0x20
 #define ERASE_32K 0x52
 #define ERASE_64K 0xD8
-#define ERASE_CHIP 0xC7
+//#define ERASE_CHIP 0xC7
+#define ERASE_CHIP 0x60
 #define PROGRAM_PAGE 0x02
 
 #define WRITE_ENABLE 0x06
@@ -34,6 +35,8 @@
 #define STATUS_WRITE 0x01
 
 #define TOP_ADDRESS 0x3FF000
+
+#define WRITE_ERROR_MASK 0x20
 
 //first byte flags
 #define ERASED 0XFF

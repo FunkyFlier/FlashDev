@@ -8,6 +8,12 @@
 #define BLOCK_MASK_64K 0x0FFF
 
 void FlashInit(){
+   while(VerifyWriteReady() == false){
+    Serial<<"init waiting for status reg to clear\r\n";
+    Serial<<GetStatusReg()<<"\r\n";
+    delay(1000);
+  } 
+  
   Serial<<"1\r\n";
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
@@ -18,8 +24,10 @@ void FlashInit(){
   SPI.transfer(0x00);
   FlashSSHigh();
   Serial<<"3\r\n";
-  while(GetStatusReg() & 0x01 != 0){
+ while(VerifyWriteReady() == false){
+    Serial<<"init waiting for status reg to clear\r\n";
     Serial<<GetStatusReg()<<"\r\n";
+    delay(1000);
   } 
 }
 
@@ -93,6 +101,13 @@ boolean FlashEraseBlock64k(uint16_t blockAddress){
   } 
 }
 boolean FlashEraseChip(){
+  /*while(GetStatusReg() & 0x01 != 0){
+   Serial<<"Erase wait 1\r\n";
+   } */
+  while(VerifyWriteReady() == false){
+    Serial<<"Erase wait 1\r\n";
+    delay(1000);
+  }
   FlashSSLow();
   SPI.transfer(WRITE_ENABLE);
   FlashSSHigh();
@@ -100,18 +115,44 @@ boolean FlashEraseChip(){
   FlashSSLow();
   SPI.transfer(ERASE_CHIP);
   FlashSSHigh();
-
-  while(GetStatusReg() & 0x01 != 0){
-  } 
+  while(VerifyWriteReady() == false){
+    Serial<<"Erase wait 2\r\n";
+    delay(1000);
+  }
+  Serial<<_HEX(GetStatusReg())<<"\r\n";
+  if (CheckForSuccessfulWrite() == true){
+    Serial<<"erase successful\r\n";
+  }else{
+    Serial<<"erase failed\r\n";
+    Serial<<_HEX(GetStatusReg())<<"\r\n";
+    while(1){}
+  }
+  /*while(GetStatusReg() & 0x01 != 0){
+   Serial<<"Erase wait 2\r\n";
+   } */
 
 }
-
+boolean CheckForSuccessfulWrite(){
+  uint8_t statusReg;
+  statusReg = GetStatusReg();
+  Serial<<_HEX(statusReg)<<","<<_HEX(WRITE_ERROR_MASK)<<","<<_HEX(statusReg&WRITE_ERROR_MASK)<<"\r\n";
+  if ( (statusReg & WRITE_ERROR_MASK) == 0x00){
+    return true;
+  }else{
+    return false;
+  }
+}
 
 uint8_t GetStatusReg(){
+  uint8_t inByte1,inByte2;
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
-  return (SPI.transfer(0) & 0x03);
+  inByte1 = SPI.transfer(0);
+  inByte2 = SPI.transfer(0);
+  //return (SPI.transfer(0));
   FlashSSHigh(); 
+  //Serial<<"SB1: "<<inByte1<<"\r\nSB2: "<<inByte2<<"\r\n";
+  return inByte1;
   //return 0 device ready write not enabled
   //return 1 device busy wrtie not enabled
   //return 2 device ready write enabled 
@@ -121,20 +162,26 @@ uint8_t GetStatusReg(){
 
 uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
   uint32_u addressOutput;
-  addressOutput.val == (pageAddress << 8) + byteAddress;
+  uint8_t inByte;
+  //Serial<<"###"<<_HEX((pageAddress << 8))<<","<<_HEX(byteAddress)<<","<<_HEX((pageAddress << 8) + byteAddress)<<"\r\n";
+  addressOutput.val = (pageAddress << 8) + byteAddress;
   FlashSSLow();
   SPI.transfer(READ_ARRAY);
   SPI.transfer(addressOutput.buffer[2]);
   SPI.transfer(addressOutput.buffer[1]);
   SPI.transfer(addressOutput.buffer[0]);
-  return SPI.transfer(0);
+  inByte = SPI.transfer(0);
+  //return SPI.transfer(0);
 
   FlashSSHigh();
-
+  return inByte;
 }
 boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint16_t numBytes, uint8_t readBuffer[]){
   uint32_u addressOutput;
   if (sizeof(readBuffer) != numBytes){
+    return false;
+  }
+  if (numBytes > 256){
     return false;
   }
   if (numBytes < (256 - byteAddress) ){
@@ -146,15 +193,15 @@ boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint16_t numByte
   SPI.transfer(addressOutput.buffer[2]);
   SPI.transfer(addressOutput.buffer[1]);
   SPI.transfer(addressOutput.buffer[0]);
-  for(uint8_t i = 0; i < numBytes; i++){
+  for(uint16_t i = 0; i < numBytes; i++){
     readBuffer[i] = SPI.transfer(0x00);
   }
   FlashSSHigh();
   return true;
 }
-boolean FlashGetPage(uint16_t pageAddress,uint8_t readBuffer[]){
+boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]){
   uint32_u addressOutput;
-  if (sizeof(readBuffer) != 256){
+  if (numBytes != 256){
     return false;
   }
   addressOutput.val == (pageAddress << 8);
@@ -163,7 +210,7 @@ boolean FlashGetPage(uint16_t pageAddress,uint8_t readBuffer[]){
   SPI.transfer(addressOutput.buffer[2]);
   SPI.transfer(addressOutput.buffer[1]);
   SPI.transfer(addressOutput.buffer[0]);
-  for(uint8_t i = 0; i < 256; i++){
+  for(uint16_t i = 0; i < 256; i++){
     readBuffer[i] = SPI.transfer(0x00);
   }
   FlashSSHigh();
@@ -178,7 +225,8 @@ void WriteEnable(){
 }
 boolean VerifyWriteReady(){
   uint8_t statusReg;
-  statusReg = GetStatusReg();
+  statusReg = GetStatusReg() & 0x03;
+  //Serial<<"^ "<<_HEX(statusReg)<<"\r\n";
   switch(statusReg){
   case 0://device ready write not enabled
     WriteEnable();
@@ -198,6 +246,8 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
+
 boolean FlashWriteByte(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeByte){
   uint32_u addressOutput;
 
@@ -232,20 +282,19 @@ boolean FlashWritePartialPage(uint16_t pageAddress, uint8_t byteAddress, uint8_t
   SPI.transfer(addressOutput.buffer[2]);
   SPI.transfer(addressOutput.buffer[1]);
   SPI.transfer(addressOutput.buffer[0]);
-  for(uint8_t i = 0; i < numBytes; i++){
+  for(uint16_t i = 0; i < numBytes; i++){
     SPI.transfer(writeBuffer[i]);
   }
   FlashSSHigh();
   return true;
 }
-boolean FlashWritePage(uint16_t pageAddress, uint8_t writeBuffer[]){
+boolean FlashWritePage(uint16_t pageAddress, uint16_t numBytes, uint8_t writeBuffer[]){
   uint32_u addressOutput;
 
   if (VerifyWriteReady() == false){
     return false;
   }
-  Serial<<"sizeof write buffer "<<sizeof(writeBuffer)<<"\r\n";
-  if (sizeof(writeBuffer) != 256){
+  if (numBytes != 256){
     return false;
   }
   addressOutput.val = (pageAddress << 8);
@@ -254,13 +303,15 @@ boolean FlashWritePage(uint16_t pageAddress, uint8_t writeBuffer[]){
   SPI.transfer(addressOutput.buffer[2]);
   SPI.transfer(addressOutput.buffer[1]);
   SPI.transfer(addressOutput.buffer[0]);
-  for(uint8_t i = 0; i < 256; i++){
+  for(uint16_t i = 0; i < 256; i++){
     SPI.transfer(writeBuffer[i]);
+    //delay(1);
+    //Serial<<"{ "<<_HEX(writeBuffer[i])<<"\r\n";
   }
   FlashSSHigh();
   return true;  
 }
-
+/*
 boolean DeviceReadyToWrite(){
   uint8_t statusRegister;
   FlashSSLow();
@@ -274,7 +325,8 @@ boolean DeviceReadyToWrite(){
   else{
     return true;
   }
-}
+}*/
+
 
 
 
