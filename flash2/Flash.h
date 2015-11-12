@@ -3,20 +3,23 @@
 
 #include <Arduino.h>
 
+void FlashInit();
+
 boolean FlashEraseBlock4k(uint16_t);//nonblocking
 boolean FlashEraseBlock32k(uint16_t);
 boolean FlashEraseBlock64k(uint16_t);
 boolean FlashEraseChip();//blocking
 
-boolean FlashCheckStatusReg();
+uint8_t GetStatusReg();
+boolean DeviceReadyToWrite();
 
-uint8_t FlashGetByte(uint32_t);
-void FlashGetArray(uint32_t,uint8_t, uint8_t);
-void FlashGetPage(uint16_t,uint8_t);
+uint8_t FlashGetByte(uint16_t,uint8_t);
+boolean FlashGetArray(uint16_t,uint8_t,uint8_t, uint8_t*);
+boolean FlashGetPage(uint16_t,uint8_t*);
 
-void FlashWriteByte(uint32_t, uint8_t);
-void FlashWritePartialPage(uint32_t, uint8_t, uint8_t);
-void FlashWritePage(uint16_t, uint8_t);
+boolean FlashWriteByte(uint16_t,uint16_t, uint8_t);
+boolean FlashWritePartialPage(uint16_t,uint8_t, uint16_t, uint8_t*);
+boolean FlashWritePage(uint16_t, uint8_t*);
 
 
 
