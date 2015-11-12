@@ -35,8 +35,8 @@ void setup(){
   FlashEraseChip();
 
 
-  Serial<<"dump flash 1\r\n";
-  FlashDump();
+  //Serial<<"dump flash 1\r\n";
+  //FlashDump();
   Serial<<"fill flash\r\n";
   FillFlash();
   Serial<<"dump flash 2\r\n";
@@ -57,7 +57,7 @@ void FillFlash(){
 
 
   //for(uint16_t i = 0; i <= 0x3FFF; i++){
-  for(uint16_t i = 0; i <= 5; i++){
+  for(uint16_t i = 0; i <= 0x3FFF; i++){
     Serial<<"* "<<i<<"\r\n";
     pageNumber.val = i;
     outputArray[0] = pageNumber.buffer[0];
@@ -75,9 +75,7 @@ void FlashDump(){
   uint8_t outputArray[256];
   uint8_t inByte;
   //for(uint16_t i = 0; i <= 0x3FFF; i++){
-  //Serial<<"a\r\n";
-  for(uint16_t i = 0; i <= 5; i++){
-    //Serial<<"b\r\n";
+  for(uint16_t i = 0; i <= 0x3FFF; i++){
     for(uint16_t j = 0; j < 256; j++){
       outputArray[j] = 0;
     }
