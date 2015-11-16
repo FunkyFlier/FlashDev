@@ -3,7 +3,7 @@
 #include "Flash.h"
 #include "Defines.h"
 
-
+//uint8_t byteBuffer[256];
 
 void setup(){
   GyroSSOutput();
@@ -29,80 +29,292 @@ void setup(){
    for(uint8_t j = 0; j <= 0xFF; j++){
    Serial<<j<<"\r\n";
    }*/
-  Serial<<"start\r\n";
+  //Serial<<"start\r\n";
   FlashInit();
-  Serial<<"erase chip\r\n";
+  //Serial<<"erase chip\r\n";
   FlashEraseChip();
-
+  //VerifyErase();
 
   //Serial<<"dump flash 1\r\n";
-  //FlashDump();
+  //FlashDump(0,0xFF);
   Serial<<"fill flash\r\n";
   FillFlash();
-  Serial<<"dump flash 2\r\n";
-  FlashDump();
+  Serial<<"verify fill\r\n";
+  VerifyFill();
+  Serial<<"4k\r\n";
+  Test4KErase();
+  Serial<<"32k\r\n";
+  Test32KErase();
+  Serial<<"64k\r\n";
+  Test64KErase();
+  Serial<<"complete\r\n";
+  //Serial<<"dump flash 2\r\n";
+  //FlashDump(0,0x0020);
 }
 
 void loop(){
 
 }
+/*void DumpTheTwoBytes(){
+ while(VerifyWriteReady() == false){
+ Serial<<"* ";
+ DispStatRegs();
+ }
+ Serial<<"****\r\n";
+ Serial<<FlashGetByte(0,2)<<","<<FlashGetByte(0,3)<<"\r\n";
+ }*/
+void VerifyFillPartial(uint16_t startPage, uint16_t endPage){
+  uint16_u inAddress;
+  uint16_t pageNumber;
+  uint32_t fullAddr;
+  uint8_t inByte;
+  if (endPage > 0x3FFF){
+    endPage = 0x3FFF;
+  }
+  if (startPage >= endPage){
+    startPage = 0;
+  }
+  for(uint16_t i = startPage; i <= endPage; i++){
+    while(VerifyWriteReady() == false){
+      Serial<<"* ";
+      DispStatRegs();
+    }
+    inAddress.buffer[0] = FlashGetByte(i,0);
+    inAddress.buffer[1] = FlashGetByte(i,1);
+    if (inAddress.val != i){
+      Serial<<"address set wrong\r\n"<<i<<"\r\n";
+      Serial<<_HEX(inAddress.buffer[0])<<","<<_HEX(inAddress.buffer[1])<<","<<inAddress.val<<"\r\n";
+    }
+    for(uint16_t j = 2; j < 256; j++){
+      inByte = FlashGetByte(i,j);
+      if (inByte != (uint8_t)j){
+        fullAddr = ((uint32_t)i << 8) + (uint32_t)j;
+        Serial<<"byte set wrong\r\n"<<fullAddr<<","<<i<<","<<j<<","<<inByte<<"\r\n";
+      }
+    }
+  }
+}
 
+void VerifyErasePartial(uint16_t startPage, uint16_t endPage){
+  uint16_t pageNumber;
+  uint8_t inByte;
+  if (endPage > 0x3FFF){
+    endPage = 0x3FFF;
+  }
+  if (startPage >= endPage){
+    startPage = 0;
+  }
+  for(uint16_t i = startPage; i <= endPage; i++){
+    while(VerifyWriteReady() == false){
+      Serial<<"* ";
+      DispStatRegs();
+    }
+    for(uint16_t j = 0; j < 256; j++){
+      inByte = FlashGetByte(i,(uint8_t)j);
+      if (inByte != 0xFF){
+        pageNumber = (i << 8) + j;
+        Serial<<"page not erased\r\n";
+        Serial<<pageNumber<<","<<i<<","<<j<<"\r\n";
+      }
+    }
+  }
+}
+void VerifyFill(){
+  uint16_u inAddress;
+  uint16_t pageNumber;
+  uint32_t fullAddr;
+  uint8_t inByte;
+  //DumpTheTwoBytes();
+  for(uint16_t i = 0; i <= 0x3FFF; i++){
+    //for(uint16_t i = 0; i < 1024; i++){  
+    //Serial<<"1 - "<<i<<"\r\n";
+    while(VerifyWriteReady() == false){
+      Serial<<"* ";
+      DispStatRegs();
+    }
+    inAddress.buffer[0] = FlashGetByte(i,0);
+    inAddress.buffer[1] = FlashGetByte(i,1);
+    //Serial<<"2\r\n";
+    if (inAddress.val != i){
+      Serial<<"address set wrong\r\n"<<i<<"\r\n";
+      Serial<<_HEX(inAddress.buffer[0])<<","<<_HEX(inAddress.buffer[1])<<","<<inAddress.val<<"\r\n";
+    }
+    //Serial<<"3\r\n";
+    for(uint16_t j = 2; j < 256; j++){
+      //Serial<<"*";
+      inByte = FlashGetByte(i,j);
+      if (inByte != (uint8_t)j){
+        fullAddr = ((uint32_t)i << 8) + (uint32_t)j;
+        Serial<<"byte set wrong\r\n"<<fullAddr<<","<<i<<","<<j<<","<<inByte<<"\r\n";
+        //DumpTheTwoBytes();
+      }
+    }
+    //Serial<<"\r\n4\r\n";
+  }
+
+}
+void VerifyErase(){
+  uint16_t pageNumber;
+  uint8_t inByte;
+  for(uint16_t i = 0; i <= 0x3FFF; i++){
+    for(uint16_t j = 0; j < 256; j++){
+      while(VerifyWriteReady() == false){
+      Serial<<"* ";
+      DispStatRegs();
+    }
+      inByte = FlashGetByte(i,(uint8_t)j);
+      if (inByte != 0xFF){
+        pageNumber = (i << 8) + j;
+        Serial<<"full not erased\r\n";
+        Serial<<pageNumber<<","<<i<<","<<j<<"\r\n";
+      }
+    }
+  }
+}
+
+void Test4KErase(){
+  uint8_t eraseByte;
+  Serial<<"-----\r\n4kdump before erase\r\n";
+  VerifyFillPartial(0,15);
+  Serial<<"a\r\n";
+  while(VerifyWriteReady() == false){
+    DispStatRegs();
+  }
+  Serial<<"b\r\n";
+  eraseByte = FlashEraseBlock4k(0); 
+  if (eraseByte == true){
+    Serial<<"erase succeded\r\n";
+    Serial<<"----------\r\n4kdump after erase\r\n"; 
+    VerifyErasePartial(0,15);
+
+  }
+  else{
+    Serial<<"erase failed\r\n";
+  }
+
+}
+
+void Test32KErase(){
+
+  uint8_t eraseByte;
+  Serial<<"-----\r\n32kdump before erase\r\n";
+  VerifyFillPartial(128,255);
+
+  Serial<<"a\r\n";
+  while(VerifyWriteReady() == false){
+    DispStatRegs();
+  }
+  Serial<<"b\r\n";
+  eraseByte = FlashEraseBlock32k(128); 
+  if (eraseByte == true){
+    Serial<<"erase succeded\r\n";
+    Serial<<"----------\r\n32kdump after erase\r\n"; 
+    VerifyErasePartial(128,255);
+
+  }
+  else{
+    Serial<<"erase 32 1failed\r\n";
+  }
+
+  Serial<<"-----\r\n32k 2 dump before erase\r\n";
+  VerifyFillPartial(256,383);
+
+  Serial<<"c\r\n";
+  while(VerifyWriteReady() == false){
+    DispStatRegs();
+  }
+  Serial<<"d\r\n";
+  eraseByte = FlashEraseBlock32k(256); 
+  if (eraseByte == true){
+    Serial<<"erase succeded\r\n";
+    Serial<<"----------\r\n32kdump after erase\r\n"; 
+    VerifyErasePartial(256,383);
+
+  }
+  else{
+    Serial<<"erase 32 2 1failed\r\n";
+  }
+
+}
+
+void Test64KErase(){
+  uint8_t eraseByte;
+  Serial<<"-----\r\n64kdump before erase\r\n";
+  VerifyFillPartial(512,767);
+  Serial<<"e\r\n";
+  while(VerifyWriteReady() == false){
+    DispStatRegs();
+  }
+  Serial<<"f\r\n";
+  eraseByte = FlashEraseBlock64k(512); 
+  if (eraseByte == true){
+    Serial<<"erase succeded\r\n";
+    Serial<<"----------\r\n64kdump after erase\r\n"; 
+    VerifyErasePartial(512,767);
+
+  }
+  else{
+    Serial<<"erase 64 failed\r\n";
+  }
+}
 void FillFlash(){
   uint16_u pageNumber;
   uint8_t outputArray[256];
   for(uint16_t j = 0; j <= 256; j++){
     outputArray[j] = (uint8_t)j;
-    Serial<<_HEX(j)<<"\r\n";
   }
 
 
-  //for(uint16_t i = 0; i <= 0x3FFF; i++){
   for(uint16_t i = 0; i <= 0x3FFF; i++){
-    Serial<<"* "<<i<<"\r\n";
     pageNumber.val = i;
     outputArray[0] = pageNumber.buffer[0];
     outputArray[1] = pageNumber.buffer[1];
+    //Serial<<i<<","<<pageNumber.val<<","<<_HEX(outputArray[0])<<","<<_HEX(outputArray[1])<<"\r\n";
     while(VerifyWriteReady() == false){
-      Serial<<"wait for ready fill flash\r\n";
-      Serial<<_HEX(GetStatusReg())<<"\r\n";
-      //Serial<<millis()<<"\r\n";
-      delay(1000);
     }
     FlashWritePage(i,sizeof(outputArray),outputArray);
   }
 }
-void FlashDump(){
+void FlashDump(uint16_t lowerBound, uint16_t upperBound){
   uint8_t outputArray[256];
   uint8_t inByte;
-  //for(uint16_t i = 0; i <= 0x3FFF; i++){
-  for(uint16_t i = 0; i <= 0x3FFF; i++){
+  if (upperBound > 0x3FFF){
+    upperBound = 0x3FFF;
+  }
+  if (lowerBound > upperBound){
+    lowerBound = 0;
+  }
+  for(uint16_t i = lowerBound; i <= upperBound; i++){
+    Serial<<"page: "<<i<<"\r\n";
     for(uint16_t j = 0; j < 256; j++){
       outputArray[j] = 0;
     }
     while(VerifyWriteReady() == false){
-      Serial<<"dump write ready\r\n";
+      Serial<<"* ";
       DispStatRegs();
-      //Serial<<_HEX(GetStatusReg())<<"\r\n";
-      //Serial<<millis()<<"\r\n";
-      //delay(1000);
     }
     if (FlashGetPage(i,sizeof(outputArray),outputArray) == false){
       Serial<<"failed to get page\r\n";
-      while(1){}
-    }
-    else{
-      Serial<<"----- "<<i<<"\r\n";
-      for(uint16_t j = 0; j < 256; j++){
-        //Serial.print(outputArray[j],HEX);
-        Serial<<_HEX(outputArray[j])<<","<<_HEX(FlashGetByte(i,(uint8_t)j))<<"\r\n";
+      while(1){
+        Serial<<"fail\r\n";
+        delay(2000);
       }
     }
-    //FlashGetPage(i,sizeof(outputArray),outputArray);
-
+    else{
+      for(uint16_t j = 0; j < 256; j++){
+        Serial<<_HEX(outputArray[j])<<"\r\n";
+      }
+    }
   }
-  Serial<<"c\r\n";
-
 }
+
+
+
+
+
+
+
+
 
 
 
