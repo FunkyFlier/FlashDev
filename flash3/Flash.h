@@ -2,8 +2,9 @@
 #define FLASH_H
 
 #include <Arduino.h>
+void CheckEraseToPageBounds(uint16_t );
 void VerifyPageWriteReady();
-  
+void LogBuilder();  
 void SearchForLastRecord();
 boolean GetRecordNumber(uint16_t, uint16_t*, uint16_t*, uint8_t*);
 void CompleteRecord(uint16_t,uint16_t*);

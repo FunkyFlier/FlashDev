@@ -2,20 +2,119 @@
 #include "Defines.h"
 #include "SPI.h"
 #include <Streaming.h>
+#include <Arduino.h> 
 
 #define BLOCK_MASK_4K 0x000F
 #define BLOCK_MASK_32K 0x007F
 #define BLOCK_MASK_64K 0x00FF
+#define LOG_RATE 100
 
-uint16_t currentRecordNumber, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
+enum LOG_STATES{
+  ASSEMBLY_WRITE_BUFFER,
+  CHECK_4K_READY,
+  ERASE4K
+
+};
+
+uint16_t currentRecordNumber, currentRecordAddress, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
+uint32_u currentTime;
+uint8_t writeBuffer[256];
+boolean startLogging = false,endLogging = false;
+
+
+void LoggingStateMachine(){
+  static uint16_t nextBlockAddress = 0;
+  static uint8_t pageCount = 0;
+  static uint8_t loggingState = ASSEMBLY_WRITE_BUFFER;
+  
+  switch(loggingState){
+  case ASSEMBLY_WRITE_BUFFER:
+    if(VerifyWriteReady() == false){
+      break;
+    }
+    LogBuilder();
+    if ((currentPageAddress & 0x000F) == 0x000F){
+      loggingState = CHECK_4K_READY;
+      pageCount = 0;
+      nextBlockAddress = (currentPageAddress & 0xFFF0) + 0x0010;
+      if (nextBlockAddress > 0x3FF0){
+        nextBlockAddress = 0;
+      }
+    }
+    break;
+  case CHECK_4K_READY:
+    if(VerifyWriteReady() == false){
+      break;
+    }
+    if (FlashGetByte((nextBlockAddress + pageCount),0) != 0xFF){
+
+      loggingState = ERASE4K;
+      break;
+    }
+    pageCount++;
+    if(pageCount == 16){
+      loggingState = ASSEMBLY_WRITE_BUFFER;
+    }
+    break;
+  case ERASE4K:
+    if(VerifyWriteReady() == false){
+      break;
+    }
+    FlashEraseBlock4k(nextBlockAddress);
+    break;
+  }
+}
+
+void LogBuilder(){
+/*  static uint8_t logIndex = 0;
+  uint16_u outInt16;
+  if (millis() - currentTime >= LOG_RATE){
+    currentTime = millis();
+    if (startLogging == true){//start of log
+      startLogging = false;
+      logIndex = 0;
+      outInt16.val = currentRecordNumber;
+      writeBuffer[logIndex++] = 0x7F;
+      writeBuffer[logIndex++] = 0xAA;
+      writeBuffer[logIndex++] = outInt16.buffer[0];
+      writeBuffer[logIndex++] = outInt16.buffer[1];
+      writeBuffer[logIndex++] = 0xFF;
+      writeBuffer[logIndex++] = 0xFF;
+      writeBuffer[logIndex++] = 0xFF;
+      writeBuffer[logIndex++] = 0x55;
+    }
+    if (logIndex == 0 ){
+      outInt16.val = currentRecordNumber;
+      writeBuffer[logIndex++] = outInt16.buffer[0];
+      writeBuffer[logIndex++] = outInt16.buffer[1];
+    }
+    if (endLogging == true){
+      if(logIndex == 0){
+        currentPageAddress -= 1;
+      }
+
+      FlashWriteByteBlocking(currentPageAddress,    0,WRITE_COMPLETE_REC_END);
+      outInt16.val = currentPageAddress;
+      FlashWriteByteBlocking(currentRecordAddress , 4,0x00);
+      FlashWriteByteBlocking(currentRecordAddress , 5,outInt16.buffer[0]);
+      FlashWriteByteBlocking(currentRecordAddress , 6,outInt16.buffer[1]);
+    }
+  }*/
+
+}
+
 void LoggingInit(){
   SearchForLastRecord();
   VerifyPageWriteReady(); 
 }
+
 void VerifyPageWriteReady(){
   //if first byte is 0xFF assume that the page is write ready
-
-    boolean restOfPageWriteReady;
+  uint16_t next4KBoundary; 
+  next4KBoundary = (currentPageAddress & 0xFFF0) + 0x0010;
+      if (next4KBoundary > 0x3FF0){
+        next4KBoundary = 0;
+      }
   if ((currentPageAddress & BLOCK_MASK_4K) == 0x00){
     FlashEraseBlock4k(currentPageAddress);
   }
@@ -26,19 +125,21 @@ void VerifyPageWriteReady(){
     FlashEraseBlock4k(next4KBoundary);
     CheckEraseToPageBounds(currentPageAddress);
   }
-
+  currentRecordAddress = currentPageAddress;
+  startLogging = true;
 }
-void CheckEraseToPageBounds(uint16_t currentAddress){
-  uint16_t next4KBoundary; 
-  uint8_t numPagesToCheck;
 
+void CheckEraseToPageBounds(uint16_t currentAddress){
+  
+  uint8_t numPagesToCheck;
+  uint16_t next4KBoundary;
   numPagesToCheck = currentAddress & 0x00F;
   next4KBoundary = (currentAddress & 0xFFF0) + 0x0010;
 
   for(uint8_t i = 0; i < numPagesToCheck; i++){
     while(VerifyWriteReady() == false){
     }
-    if(FlashGetByte((currentAddress + i)) != 0xFF){
+    if(FlashGetByte((currentAddress + i),0) != 0xFF){
       for(uint8_t i = 0; i < numPagesToCheck; i++){
         while(VerifyWriteReady() == false){
         }
@@ -640,6 +741,15 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
+
+
+
+
+
+
+
+
 
 
 
