@@ -315,7 +315,7 @@ void SearchForLastRecord(){
   boolean validRecord,recordComplete;
   uint32_u fullAddress;
   for(uint16_t i = 0; i <= 0x3FFF; i++){
-    fullAddress.val = i << 8;
+    fullAddress.val = (uint32_t)i << 8;
     FlashSSLow();
     SPI.transfer(READ_ARRAY);
     SPI.transfer(fullAddress.buffer[2]);

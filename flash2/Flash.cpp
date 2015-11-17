@@ -7,11 +7,17 @@
 #define BLOCK_MASK_32K 0x007F
 #define BLOCK_MASK_64K 0x00FF
 
+uint16_t currentRecordNumber, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
+
+void SearchForLastRecord(){
+  
+}
+
 void FlashInit(){
   while(VerifyWriteReady() == false){
-    Serial<<"init waiting for status reg to clear\r\n";
+    Serial<<"init waiting for status reg to clear 1\r\n";
     Serial<<GetStatusReg()<<"\r\n";
-    delay(1000);
+    //delay(1000);
   } 
 
   FlashSSLow();
@@ -22,9 +28,9 @@ void FlashInit(){
   SPI.transfer(0x00);
   FlashSSHigh();
   while(VerifyWriteReady() == false){
-    Serial<<"init waiting for status reg to clear\r\n";
+    Serial<<"init waiting for status reg to clear 2\r\n";
     Serial<<GetStatusReg()<<"\r\n";
-    delay(1000);
+    //delay(1000);
   } 
 }
 
