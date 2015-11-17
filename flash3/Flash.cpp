@@ -32,6 +32,23 @@ void LoggingStateMachine(){
     if(VerifyWriteReady() == false){
       break;
     }
+    if (endLogging == true && startLogging == false){
+      if (currentPageAddress ==0){
+        outInt16.val = 0x3FFF; 
+      }else{
+        outInt16.val = currentPageAddress - 1;
+      }
+      writeBuffer[0] = WRITE_COMPLETE_REC_END;
+      writeBuffer[1] = 0xFF;
+      writeBuffer[2] = 0xFF;
+      writeBuffer[3] = 0xFF;
+      writeBuffer[4] = 0x00;
+      writeBuffer[5] = outInt16.buffer[0];
+      writeBuffer[6] = outInt16.buffer[1];
+      FlashWriteByteBlocking(currentPageAddress,    0,WRITE_COMPLETE_REC_END);
+      loggingState = COMPLETE_RECORD;
+      break;
+    }
     LogBuilder();
     if ((currentPageAddress & 0x000F) == 0x000F){
       loggingState = CHECK_4K_READY;
@@ -42,6 +59,17 @@ void LoggingStateMachine(){
       }
     }
     break;
+  case COMPLETE_RECORD:
+    if(VerifyWriteReady() == false){
+      break;
+    }
+    writeBuffer[0] = 0;
+    writeBuffer[1] = outInt16.buffer[0]);
+    writeBuffer[2] = outInt16.buffer[1]);
+    FlashWritePartialPage(currentRecordAddress,4,3,writeBuffer);
+    currentRecordAddress += 1;
+    
+  break;
   case CHECK_4K_READY:
     if(VerifyWriteReady() == false){
       break;
@@ -66,7 +94,7 @@ void LoggingStateMachine(){
 }
 
 void LogBuilder(){
-/*  static uint8_t logIndex = 0;
+  static uint8_t logIndex = 0;
   uint16_u outInt16;
   if (millis() - currentTime >= LOG_RATE){
     currentTime = millis();
@@ -83,23 +111,33 @@ void LogBuilder(){
       writeBuffer[logIndex++] = 0xFF;
       writeBuffer[logIndex++] = 0x55;
     }
-    if (logIndex == 0 ){
-      outInt16.val = currentRecordNumber;
-      writeBuffer[logIndex++] = outInt16.buffer[0];
-      writeBuffer[logIndex++] = outInt16.buffer[1];
-    }
-    if (endLogging == true){
+    /*if (endLogging == true){
       if(logIndex == 0){
         currentPageAddress -= 1;
       }
-
+      outInt16.val = currentPageAddress;
+      writeBuffer[0] = WRITE_COMPLETE_REC_END;
+      writeBuffer[1] = 0xFF;
+      writeBuffer[2] = 0xFF;
+      writeBuffer[3] = 0xFF;
+      writeBuffer[4] = 0x00;
+      writeBuffer[5] = outInt16.buffer[0];
+      writeBuffer[6] = outInt16.buffer[1];
+      //FlashWritePartialPage(currentPageAddress,
       FlashWriteByteBlocking(currentPageAddress,    0,WRITE_COMPLETE_REC_END);
       outInt16.val = currentPageAddress;
       FlashWriteByteBlocking(currentRecordAddress , 4,0x00);
       FlashWriteByteBlocking(currentRecordAddress , 5,outInt16.buffer[0]);
       FlashWriteByteBlocking(currentRecordAddress , 6,outInt16.buffer[1]);
+    }*/
+    if (logIndex == 0 ){
+      
+      outInt16.val = currentRecordNumber;
+      writeBuffer[logIndex++] = outInt16.buffer[0];
+      writeBuffer[logIndex++] = outInt16.buffer[1];
     }
-  }*/
+    
+  }
 
 }
 
