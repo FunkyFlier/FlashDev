@@ -2,12 +2,14 @@
 #define FLASH_H
 
 #include <Arduino.h>
-
+void VerifyPageWriteReady();
+  
 void SearchForLastRecord();
 boolean GetRecordNumber(uint16_t, uint16_t*, uint16_t*, uint8_t*);
 void CompleteRecord(uint16_t,uint16_t*);
   
 void FlashInit();
+void LoggingInit();
 
 uint8_t FlashGetByte(uint16_t,uint8_t);
 boolean FlashGetArray(uint16_t,uint8_t,uint8_t, uint8_t*);

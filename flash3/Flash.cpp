@@ -8,8 +8,48 @@
 #define BLOCK_MASK_64K 0x00FF
 
 uint16_t currentRecordNumber, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
+void LoggingInit(){
+  SearchForLastRecord();
+  VerifyPageWriteReady(); 
+}
+void VerifyPageWriteReady(){
+  //if first byte is 0xFF assume that the page is write ready
 
+    boolean restOfPageWriteReady;
+  if ((currentPageAddress & BLOCK_MASK_4K) == 0x00){
+    FlashEraseBlock4k(currentPageAddress);
+  }
+  else{
 
+    while(VerifyWriteReady() == false){
+    }
+    FlashEraseBlock4k(next4KBoundary);
+    CheckEraseToPageBounds(currentPageAddress);
+  }
+
+}
+void CheckEraseToPageBounds(uint16_t currentAddress){
+  uint16_t next4KBoundary; 
+  uint8_t numPagesToCheck;
+
+  numPagesToCheck = currentAddress & 0x00F;
+  next4KBoundary = (currentAddress & 0xFFF0) + 0x0010;
+
+  for(uint8_t i = 0; i < numPagesToCheck; i++){
+    while(VerifyWriteReady() == false){
+    }
+    if(FlashGetByte((currentAddress + i)) != 0xFF){
+      for(uint8_t i = 0; i < numPagesToCheck; i++){
+        while(VerifyWriteReady() == false){
+        }
+        ClearPage(currentAddress + i);
+      }
+      currentPageAddress = next4KBoundary;
+      return;
+    }
+  }
+
+}
 void SearchForLastRecord(){
   uint8_t  firstByte;
   uint16_t recordNumber,lasPageAddress;
@@ -237,7 +277,7 @@ void CompleteRecord(uint16_t index, uint16_t startingRecordNumber){
     }
 
     searchCount++;
-    if (searchCount == 0x4000){
+    if (searchCount == 0x3FFF){
       endOfRecordFound = true;
       startingAddress = index ;
 
@@ -247,7 +287,7 @@ void CompleteRecord(uint16_t index, uint16_t startingRecordNumber){
       else{
         endAddress.val =  index - 1;
       }
-      
+
       FlashWriteByteBlocking(startingAddress,  0,WRITE_COMPLETE_REC_END);
 
       FlashWriteByteBlocking(startingAddress , 4,0x00);
@@ -339,9 +379,23 @@ boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]
 
 }
 //write
-
-
 boolean FlashWriteByte(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeByte){
+  uint32_u addressOutput;
+
+  while(VerifyWriteReady() == false){
+  } 
+  addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
+  FlashSSLow();
+  SPI.transfer(PROGRAM_PAGE);
+  SPI.transfer(addressOutput.buffer[2]);
+  SPI.transfer(addressOutput.buffer[1]);
+  SPI.transfer(addressOutput.buffer[0]);
+  SPI.transfer(writeByte);
+  FlashSSHigh();
+  return true;
+}
+
+boolean FlashWriteByteBlocking(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeByte){
   uint32_u addressOutput;
 
   if (VerifyWriteReady() == false){
@@ -586,6 +640,9 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
+
+
 
 
 
