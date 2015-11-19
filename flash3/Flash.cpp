@@ -25,58 +25,10 @@ boolean startLogging = false,endLogging = false;
 void LoggingStateMachine(){
   static uint16_t nextBlockAddress = 0;
   static uint8_t pageCount = 0;
-  static uint8_t loggingState = ASSEMBLY_WRITE_BUFFER;
+  static uint8_t loggingState = WRITE_READY;
 
   switch(loggingState){
-  case ASSEMBLY_WRITE_BUFFER:
-    if(VerifyWriteReady() == false){
-      break;
-    }
-    if (endLogging == true && startLogging == false){
-      if (currentPageAddress == 0){
-        outInt16.val = 0x3FFF; 
-      }
-      else{
-        outInt16.val = currentPageAddress - 1;
-      }
-      writeBuffer[0] = WRITE_COMPLETE_REC_END;
-      writeBuffer[1] = 0xFF;
-      writeBuffer[2] = 0xFF;
-      writeBuffer[3] = 0xFF;
-      writeBuffer[4] = 0x00;
-      writeBuffer[5] = outInt16.buffer[0];
-      writeBuffer[6] = outInt16.buffer[1];
-      FlashWriteByteBlocking(currentPageAddress,    0,WRITE_COMPLETE_REC_END);
-      loggingState = COMPLETE_RECORD;
-      break;
-    }
-    if (LogBuilder() == true){
-      loggingState = WRITE_FIRST_BYTE;
-    }
-    if ((currentPageAddress & 0x000F) == 0x000F){
-      loggingState = CHECK_4K_READY;
-      pageCount = 0;
-      nextBlockAddress = (currentPageAddress & 0xFFF0) + 0x0010;
-      if (nextBlockAddress > 0x3FF0){
-        nextBlockAddress = 0;
-      }
-    }
-    break;
-  case COMPLETE_RECORD:
-    if(VerifyWriteReady() == false){
-      break;
-    }
-    writeBuffer[0] = 0;
-    writeBuffer[1] = outInt16.buffer[0];
-    writeBuffer[2] = outInt16.buffer[1];
-    FlashWritePartialPage(currentRecordAddress,4,3,writeBuffer);
-    currentRecordAddress += 1;
-    currentRecordNumber += 1;
-    if (currentRecordNumber > 0x3FFF){
-      currentRecordNumber = 0;
-    }
-    break;
-  case CHECK_4K_READY:
+  case CHECK_4K:
     if(VerifyWriteReady() == false){
       break;
     }
@@ -86,15 +38,49 @@ void LoggingStateMachine(){
     }
     pageCount++;
     if(pageCount == 16){
-      loggingState = ASSEMBLY_WRITE_BUFFER;
+      loggingState = WRITE_READY;
     }
     break;
-  case ERASE4K:
+  case ERASE_4K:
     if(VerifyWriteReady() == false){
       break;
     }
     FlashEraseBlock4k(nextBlockAddress);
+    loggingState = WRITE_READY;
     break;
+  case WRITE_READY:
+    if(VerifyWriteReady() == false){
+      break;
+    }
+    if (startNewLog == true){
+      endCurrentLog = false;
+      startNewLog = false;
+      loggingState = START_NEW_LOG;
+    }
+    if (endCurrentLog == true){
+      endCurrentLog = false;
+      startNewLog = false;
+      loggingState = END_CURRENT_LOG;
+    }
+    if (startNewLog == false && endCurrentLog == false){
+      loggingReady = true;
+      if (startWrite == true){
+        loggingState = COMPLETE_PAGE;
+        loggingReady = false;
+        startWrite = false;
+      }
+    }
+    break;
+  case COMPLETE_PAGE:
+    if(VerifyWriteReady() == false){
+      break;
+    }
+    break;
+  case START_NEW_LOG:
+    break;
+  case END_CURRENT_LOG:
+    break;
+   
   }
 }
 
@@ -117,7 +103,7 @@ boolean LogBuilder(){
       writeBuffer[logIndex++] = 0xFF;
       writeBuffer[logIndex++] = 0x55;
     }
-    
+
     //do logging stuff
     //writeBuffer[logIndex++] = _x__; etc
     if (logIndex == 0 ){
@@ -768,6 +754,10 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
+
+
+
 
 
 
