@@ -3,7 +3,7 @@
 #include "Flash.h"
 #include "Defines.h"
 
-//uint8_t byteBuffer[256];
+uint8_t byteBuffer[256];
 
 void setup(){
   GyroSSOutput();
@@ -25,28 +25,72 @@ void setup(){
   Serial.begin(115200);
 
   FlashInit();
+
   Serial<<"erase chip\r\n";
   FlashEraseChip();
-  Serial<<"verify erase\r\n";
-  VerifyErase();
-  Serial<<"fill flash\r\n";
-  FillFlash();
-  Serial<<"verify fill\r\n";
-  VerifyFill();
-  Serial<<"4k\r\n";
-  Test4KErase();
-  Serial<<"32k\r\n";
-  Test32KErase();
-  Serial<<"64k\r\n";
-  Test64KErase();
-  Serial<<"tests complete\r\n";
+  //Serial<<"verify erase\r\n";
+  //VerifyErase();
+  Serial<<"Setup record\r\n";
+  MakeRecord();
+  Serial<<"last record search\r\n";
+  SearchForLastRecord();
+  /*Serial<<"fill flash\r\n";
+   FillFlash();
+   Serial<<"verify fill\r\n";
+   VerifyFill();
+   Serial<<"4k\r\n";
+   Test4KErase();
+   Serial<<"32k\r\n";
+   Test32KErase();
+   Serial<<"64k\r\n";
+   Test64KErase();*/
+   Serial<<"tests complete\r\n";
 
 }
 
 void loop(){
 
 }
+void MakeRecord(){
+  byteBuffer[0] = 0x1F;
+  byteBuffer[1] = 0x00;
+  byteBuffer[2] = 0x00;
+  byteBuffer[3] = 0x00;
+  byteBuffer[4] = 0x14;
+  byteBuffer[5] = 0x00;
+  while(VerifyWriteReady() == false){
+    //Serial<<"1\r\n";
+    DispStatRegs();
+  }
+  FlashWritePage(0,256,byteBuffer);
+  
+  byteBuffer[0] = 0x3F;
+  byteBuffer[1] = 0x00;
+  byteBuffer[2] = 0x00;
+  for (uint16_t i = 1; i <0x14; i++){
+    while(VerifyWriteReady() == false){
+      //Serial<<"2\r\n";
+      DispStatRegs();
+    }
+    FlashWritePage(i,256,byteBuffer);
+  }
+  
+  byteBuffer[0] = 0x2F;
+  byteBuffer[1] = 0x00;
+  byteBuffer[2] = 0x00;
+  while(VerifyWriteReady() == false){
+    //Serial<<"3\r\n";
+    DispStatRegs();
+  }
+  FlashWritePage(0x14,256,byteBuffer);
+  FlashDump(0x00,0x14);
+}
 
+/*void FillCompleteRecords(){
+ for(uint16_t i = 0; i <= 0x3F; i++){
+ 
+ }
+ }*/
 void VerifyFillPartial(uint16_t startPage, uint16_t endPage){
   uint16_u inAddress;
   uint16_t pageNumber;
@@ -143,9 +187,9 @@ void VerifyErase(){
   for(uint16_t i = 0; i <= 0x3FFF; i++){
     for(uint16_t j = 0; j < 256; j++){
       while(VerifyWriteReady() == false){
-      Serial<<"* ";
-      DispStatRegs();
-    }
+        Serial<<"* ";
+        DispStatRegs();
+      }
       inByte = FlashGetByte(i,(uint8_t)j);
       if (inByte != 0xFF){
         pageNumber = (i << 8) + j;
@@ -291,6 +335,11 @@ void FlashDump(uint16_t lowerBound, uint16_t upperBound){
     }
   }
 }
+
+
+
+
+
 
 
 

@@ -48,7 +48,7 @@
 #define WRITE_COMPLETE_REC_END 0x2F
 #define WRITE_COMPLETE_REC_START_END 0x0F
 #define TO_ERASE 0x00
-#define START_OF_REC_LEN 7
+#define START_OF_REC_LEN 5
 
 typedef union{
   uint16_t val;

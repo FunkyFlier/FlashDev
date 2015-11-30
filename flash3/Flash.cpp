@@ -10,10 +10,12 @@
 #define LOG_RATE 100
 
 enum LOG_STATES{
-  ASSEMBLY_WRITE_BUFFER,
-  CHECK_4K_READY,
-  ERASE4K
-
+  CHECK_4K,
+  ERASE,
+  WRITE_READY,
+  COMPLETE_PAGE,
+  START_NEW_LOG,
+  END_CURRENT_LOG
 };
 
 uint16_t currentRecordNumber, currentRecordAddress, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
@@ -23,7 +25,7 @@ uint8_t writeBuffer[256],loggingBuffer[256];
 
 uint8_t writeBufferIndex = 0;
 
-boolean startNewLog = false,endCurrentLog = false,startWrite = false;
+boolean startNewLog = false,endCurrentLog = false,startWrite = false,loggingReady=false;
 
 
 void LoggingStateMachine(){
@@ -38,7 +40,7 @@ void LoggingStateMachine(){
       break;
     }
     if (FlashGetByte((nextBlockAddress + pageCount),0) != 0xFF){
-      loggingState = ERASE4K;
+      loggingState = ERASE;
       break;
     }
     pageCount++;
@@ -46,7 +48,7 @@ void LoggingStateMachine(){
       loggingState = WRITE_READY;
     }
     break;
-  case ERASE_4K:
+  case ERASE:
     if(VerifyWriteReady() == false){
       break;
     }
@@ -125,9 +127,13 @@ void LoggingStateMachine(){
 
   }
 }
-
+void LogHandler(){
+  //do logging
+  //call WriteBufferHandler
+}
 
 void WriteBufferRemainder(){
+  uint16_u outInt16;
   outInt16.val = currentRecordNumber;
   writeBuffer[0] = WRITE_STARTED_REC_END;
   writeBuffer[1] = outInt16.buffer[0];
@@ -144,7 +150,8 @@ void WriteBufferRemainder(){
   }
   currentRecordAddress = currentPageAddress;
 }
-boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer){
+boolean WriteBufferHandler(uint8_t numBytes, uint8_t *inputBuffer){
+  uint16_u outInt16;
   boolean bufferToFlash = false;
   if (writeBufferIndex == 0){
     writeBuffer[0] = WRITE_STARTED;
@@ -153,7 +160,8 @@ boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer){
     writeBufferIndex == 4;
   }
   for(uint16_t i = 0; i < numBytes; i++){
-    writeBuffer[writeBufferIndex++] = inputBuffer[i];
+    writeBuffer[writeBufferIndex] = inputBuffer[i];
+    writeBufferIndex++;
     if (writeBufferIndex == 0){
       FlashWritePage(currentPageAddress,256,writeBuffer);
       bufferToFlash = true;
@@ -169,38 +177,7 @@ boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer){
   }
   return bufferToFlash;
 }
-/*boolean LogBuilder(){
- static uint8_t logIndex = 0;
- boolean logWritten;
- uint16_u outInt16;
- if (millis() - currentTime >= LOG_RATE){
- currentTime = millis();
- if (startLogging == true){//start of log
- startLogging = false;
- logIndex = 0;
- outInt16.val = currentRecordNumber;
- writeBuffer[logIndex++] = 0x7F;
- writeBuffer[logIndex++] = 0xAA;
- writeBuffer[logIndex++] = outInt16.buffer[0];
- writeBuffer[logIndex++] = outInt16.buffer[1];
- writeBuffer[logIndex++] = 0xFF;
- writeBuffer[logIndex++] = 0xFF;
- writeBuffer[logIndex++] = 0xFF;
- writeBuffer[logIndex++] = 0x55;
- }
- 
- //do logging stuff
- //writeBuffer[logIndex++] = _x__; etc
- if (logIndex == 0 ){
- outInt16.val = currentRecordNumber;
- writeBuffer[logIndex++] = 0x7F;
- writeBuffer[logIndex++] = outInt16.buffer[0];
- writeBuffer[logIndex++] = outInt16.buffer[1];
- }
- }
- 
- }
- */
+
 void LoggingInit(){
   SearchForLastRecord();
   VerifyPageWriteReady(); 
@@ -224,7 +201,7 @@ void VerifyPageWriteReady(){
     CheckEraseToPageBounds(currentPageAddress);
   }
   currentRecordAddress = currentPageAddress;
-  startLogging = true;
+  //startLogging = true;
 }
 
 void CheckEraseToPageBounds(uint16_t currentAddress){
@@ -254,7 +231,8 @@ void SearchForLastRecord(){
   uint16_t recordNumber,lasPageAddress;
   boolean validRecord,recordComplete;
   uint32_u fullAddress;
-  for(uint16_t i = 0; i <= 0x3FFF; i++){
+  //for(uint16_t i = 0; i <= 0x3FFF; i++){
+  for(uint16_t i = 0; i <= 0x00FF; i++){
     fullAddress.val = (uint32_t)i << 8;
     FlashSSLow();
     SPI.transfer(READ_ARRAY);
@@ -263,27 +241,50 @@ void SearchForLastRecord(){
     SPI.transfer(fullAddress.buffer[0]);
     firstByte = SPI.transfer(0);
     FlashSSHigh();
-    if (firstByte == WRITE_COMPLETE_REC_START || firstByte == WRITE_COMPLETE_REC_START_END){
-      validRecord = GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
-      //handle incomplete record for WRITE_COMPLETE_REC_START_END
-      if(validRecord == true){
-        if (recordComplete == false){
-          CompleteRecord(i,&recordNumber);
-        }
-        if (recordNumber >= currentRecordNumber){ 
-          currentRecordNumber = recordNumber + 1;
-          currentPageAddress = lasPageAddress + 1;
-        }
-        if (recordNumber == 0x3FFF){//or 3FFF?
-          currentRecordNumber = 0;
-          currentPageAddress = 0;
-        }
 
-        if (recordNumber <= lowestRecordNumber){
-          lowestRecordNumber = recordNumber;
-          lowestRecordAddress = i;
-        }
+    if (firstByte == WRITE_COMPLETE_REC_START || firstByte == WRITE_COMPLETE_REC_START_END){
+      Serial<<"1\r\n";
+      Serial<<_HEX(firstByte)<<"\r\n";
+      //validRecord = GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
+      GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
+      //Serial<<validRecord<<"\r\n";
+      //handle incomplete record for WRITE_COMPLETE_REC_START_END
+      if (recordComplete == false){
+        CompleteRecord(i,&recordNumber);
       }
+      if (recordNumber >= currentRecordNumber){ 
+        currentRecordNumber = recordNumber + 1;
+        currentPageAddress = lasPageAddress + 1;
+      }
+      if (recordNumber == 0x3FFF){//or 3FFF?
+        currentRecordNumber = 0;
+        currentPageAddress = 0;
+      }
+
+      if (recordNumber <= lowestRecordNumber){
+        lowestRecordNumber = recordNumber;
+        lowestRecordAddress = i;
+      }
+      Serial<<recordNumber<<","<<currentRecordNumber<<","<<_HEX(currentPageAddress)<<"\r\n";
+      /*if(validRecord == true){
+       if (recordComplete == false){
+       CompleteRecord(i,&recordNumber);
+       }
+       if (recordNumber >= currentRecordNumber){ 
+       currentRecordNumber = recordNumber + 1;
+       currentPageAddress = lasPageAddress + 1;
+       }
+       if (recordNumber == 0x3FFF){//or 3FFF?
+       currentRecordNumber = 0;
+       currentPageAddress = 0;
+       }
+       
+       if (recordNumber <= lowestRecordNumber){
+       lowestRecordNumber = recordNumber;
+       lowestRecordAddress = i;
+       }
+       //Serial<<recordNumber<<","<<currentRecordNumber<<","<<currentPageAddress<<"\r\n";
+       }*/
     }
 
   }
@@ -304,20 +305,20 @@ boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAdd
   for(uint8_t i = 0; i < START_OF_REC_LEN; i++){
     inByte = SPI.transfer(0);
     switch(i){
+      /*case 0:
+       if (inByte != 0xAA){
+       FlashSSHigh();
+       return false;
+       }
+       break;*/
     case 0:
-      if (inByte != 0xAA){
-        FlashSSHigh();
-        return false;
-      }
-      break;
-    case 1:
       inInt16.buffer[0] = inByte;
       break;
-    case 2:
+    case 1:
       inInt16.buffer[1] = inByte;
       *recordNumber = inInt16.val;
       break;
-    case 3://record complete
+    case 2://record complete
       if (inByte == 0x00){
         *recordComplete = true;
       }
@@ -325,12 +326,12 @@ boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAdd
         *recordComplete = false;
       }
       break;
-    case 4://last page LSB
+    case 3://last page LSB
       if (*recordComplete == true){
         inInt16.buffer[0] = inByte;
       }
       break;
-    case 5://last page LSB
+    case 4://last page LSB
       if (*recordComplete == true){
         inInt16.buffer[1] = inByte;
         *endAddress = inInt16.val;
@@ -339,16 +340,16 @@ boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAdd
         *endAddress = 0;
       }
       break;
-    case 6:
-      if (inByte!= 0x55){
-        FlashSSHigh();
-        return true;
-      }
-      else{
-        FlashSSHigh();
-        return false;
-      }
-      break;
+      /*case 6:
+       if (inByte!= 0x55){
+       FlashSSHigh();
+       return true;
+       }
+       else{
+       FlashSSHigh();
+       return false;
+       }
+       break;*/
     }
   }
   FlashSSHigh();
@@ -358,7 +359,7 @@ boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAdd
 
 }
 
-void CompleteRecord(uint16_t index, uint16_t startingRecordNumber){
+void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
   boolean endOfRecordFound = false;
   uint8_t startByte;
   uint16_t searchCount = 0;
@@ -376,7 +377,7 @@ void CompleteRecord(uint16_t index, uint16_t startingRecordNumber){
     switch(startByte){
     case WRITE_COMPLETE://verify record number
       FlashGetArray(searchAddress,1,sizeof(recordNumber.buffer),recordNumber.buffer);
-      if (recordNumber.val != startingRecordNumber){
+      if (recordNumber.val != *startingRecordNumber){
         endOfRecordFound = true;
         searchAddress -= 1;
         endAddress.val =  searchAddress;
@@ -412,7 +413,7 @@ void CompleteRecord(uint16_t index, uint16_t startingRecordNumber){
         searchAddress -= 0x3FFF;
       }
       FlashGetArray(searchAddress, 1,2,recordNumber.buffer);
-      if (recordNumber.val != startingRecordNumber){
+      if (recordNumber.val != *startingRecordNumber){
         endOfRecordFound = true;
         startingAddress = index ;
         endAddress.val =  index;
@@ -426,7 +427,7 @@ void CompleteRecord(uint16_t index, uint16_t startingRecordNumber){
     case WRITE_COMPLETE_REC_END://
       FlashGetArray((searchAddress + 1) , 2,sizeof(recordNumber.buffer),recordNumber.buffer);
       startingAddress = index;
-      if (recordNumber.val != startingRecordNumber){
+      if (recordNumber.val != *startingRecordNumber){
         //startingAddress = index;
         endAddress.val =  searchAddress - 1;
         FlashWriteByteBlocking(endAddress.val, 0 ,WRITE_COMPLETE_REC_END);
@@ -535,7 +536,7 @@ uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
   return inByte;
 }
 
-boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint16_t numBytes, uint8_t readBuffer[]){
+boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes, uint8_t readBuffer[]){
   uint32_u addressOutput;
   if (sizeof(readBuffer) != numBytes){
     return false;
@@ -839,51 +840,6 @@ boolean VerifyWriteReady(){
     break;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
