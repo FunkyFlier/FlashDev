@@ -228,7 +228,7 @@ void CheckEraseToPageBounds(uint16_t currentAddress){
 }
 void SearchForLastRecord(){
   uint8_t  firstByte;
-  uint16_t recordNumber,lasPageAddress;
+  uint16_t recordNumber,lastPageAddress;
   boolean validRecord,recordComplete;
   uint32_u fullAddress;
   //for(uint16_t i = 0; i <= 0x3FFF; i++){
@@ -245,18 +245,18 @@ void SearchForLastRecord(){
     if (firstByte == WRITE_COMPLETE_REC_START || firstByte == WRITE_COMPLETE_REC_START_END){
       Serial<<"&&\r\n";
       Serial<<_HEX(firstByte)<<"\r\n";
-      //validRecord = GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
-      GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
-      Serial<<recordNumber<<","<<lasPageAddress<<","<<recordComplete<<"\r\n";
+      //validRecord = GetRecordNumber(i,&recordNumber,&lastPageAddress,&recordComplete);
+      GetRecordNumber(i,&recordNumber,&lastPageAddress,&recordComplete);
+      Serial<<recordNumber<<","<<lastPageAddress<<","<<recordComplete<<"\r\n";
       //Serial<<validRecord<<"\r\n";
       //handle incomplete record for WRITE_COMPLETE_REC_START_END
       if (recordComplete == false){
         Serial<<"^^^\r\n";
-        CompleteRecord(i,&recordNumber);
+        CompleteRecord(i,&recordNumber,&lastPageAddress);
       }
       if (recordNumber >= currentRecordNumber){ 
         currentRecordNumber = recordNumber + 1;
-        currentPageAddress = lasPageAddress + 1;
+        currentPageAddress = lastPageAddress + 1;
       }
       if (recordNumber == 0x3FFF){//or 3FFF?
         currentRecordNumber = 0;
@@ -274,7 +274,7 @@ void SearchForLastRecord(){
        }
        if (recordNumber >= currentRecordNumber){ 
        currentRecordNumber = recordNumber + 1;
-       currentPageAddress = lasPageAddress + 1;
+       currentPageAddress = lastPageAddress + 1;
        }
        if (recordNumber == 0x3FFF){//or 3FFF?
        currentRecordNumber = 0;
@@ -361,7 +361,7 @@ boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAdd
 
 }
 
-void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
+void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* finalAddress){
   boolean endOfRecordFound = false;
   uint8_t startByte;
   uint16_t searchCount = 0;
@@ -386,12 +386,14 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
         endOfRecordFound = true;
         searchAddress -= 1;
         endAddress.val =  searchAddress;
+        
         startingAddress = index;
         FlashWriteByteBlocking(searchAddress,   0,WRITE_COMPLETE_REC_END);
 
         FlashWriteByteBlocking(startingAddress, 3,0x00);
         FlashWriteByteBlocking(startingAddress, 4,endAddress.buffer[0]);
         FlashWriteByteBlocking(startingAddress, 5,endAddress.buffer[1]);
+        *finalAddress = endAddress.val;
       }
       break;
     case WRITE_COMPLETE_REC_START:
@@ -415,6 +417,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
         FlashWriteByteBlocking(startingAddress , 3,0x00);
         FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
         FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
+        *finalAddress = endAddress.val;
         break;
       }
       searchAddress += 1;
@@ -439,6 +442,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
         FlashWriteByteBlocking(startingAddress , 3,0x00);
         FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
         FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
+        *finalAddress = endAddress.val;
       }
       break;
     case WRITE_COMPLETE_REC_END://
@@ -456,6 +460,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
       FlashWriteByteBlocking(startingAddress , 3,0x00);
       FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
       FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
+      *finalAddress = endAddress.val;
       endOfRecordFound = true;
 
       break;
@@ -480,6 +485,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
         FlashWriteByteBlocking(startingAddress , 3,0x00);
         FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
         FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
+        *finalAddress = endAddress.val;
       }
       else{
         //endOfRecordFound = true;
@@ -493,6 +499,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
         FlashWriteByteBlocking(startingAddress , 3,0x00);
         FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
         FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
+        *finalAddress = endAddress.val;
       }
 
       break;
@@ -515,6 +522,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
       FlashWriteByteBlocking(startingAddress , 3,0x00);
       FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
       FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
+      *finalAddress = endAddress.val;
     }
   }
 

@@ -80,9 +80,9 @@ void MakeRecord(){
     FlashWritePage(i,256,byteBuffer);
   }
   
-  byteBuffer[0] = 0x3F;
+  byteBuffer[0] = 0x2F;
   byteBuffer[1] = 0x00;
-  byteBuffer[2] = 0x00;
+  byteBuffer[2] = 0x01;
   while(VerifyWriteReady() == false){
     //Serial<<"3\r\n";
     DispStatRegs();
