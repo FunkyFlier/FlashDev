@@ -243,13 +243,15 @@ void SearchForLastRecord(){
     FlashSSHigh();
 
     if (firstByte == WRITE_COMPLETE_REC_START || firstByte == WRITE_COMPLETE_REC_START_END){
-      Serial<<"1\r\n";
+      Serial<<"&&\r\n";
       Serial<<_HEX(firstByte)<<"\r\n";
       //validRecord = GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
       GetRecordNumber(i,&recordNumber,&lasPageAddress,&recordComplete);
+      Serial<<recordNumber<<","<<lasPageAddress<<","<<recordComplete<<"\r\n";
       //Serial<<validRecord<<"\r\n";
       //handle incomplete record for WRITE_COMPLETE_REC_START_END
       if (recordComplete == false){
+        Serial<<"^^^\r\n";
         CompleteRecord(i,&recordNumber);
       }
       if (recordNumber >= currentRecordNumber){ 
@@ -376,26 +378,33 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
     startByte = FlashGetByte(searchAddress,0);
     switch(startByte){
     case WRITE_COMPLETE://verify record number
+      Serial<<"a\r\n";
+      
       FlashGetArray(searchAddress,1,sizeof(recordNumber.buffer),recordNumber.buffer);
       if (recordNumber.val != *startingRecordNumber){
+        Serial<<"a**\r\n";
         endOfRecordFound = true;
         searchAddress -= 1;
         endAddress.val =  searchAddress;
         startingAddress = index;
         FlashWriteByteBlocking(searchAddress,   0,WRITE_COMPLETE_REC_END);
 
-        FlashWriteByteBlocking(startingAddress, 4,0x00);
-        FlashWriteByteBlocking(startingAddress, 5,endAddress.buffer[0]);
-        FlashWriteByteBlocking(startingAddress, 6,endAddress.buffer[1]);
+        FlashWriteByteBlocking(startingAddress, 3,0x00);
+        FlashWriteByteBlocking(startingAddress, 4,endAddress.buffer[0]);
+        FlashWriteByteBlocking(startingAddress, 5,endAddress.buffer[1]);
       }
       break;
     case WRITE_COMPLETE_REC_START:
+      Serial<<"b\r\n";
       if (searchAddress != index){
+        Serial<<"1b\r\n";
         endOfRecordFound = true;
         if (searchAddress == 0){
+          Serial<<"2b\r\n";
           searchAddress = 0x3FFF;
         }
         else{
+          Serial<<"3b\r\n";
           searchAddress -= 1;
         }
         endAddress.val =  searchAddress;
@@ -403,48 +412,59 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
 
         FlashWriteByteBlocking(searchAddress,    0,WRITE_COMPLETE_REC_END);
 
-        FlashWriteByteBlocking(startingAddress , 4,0x00);
-        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[0]);
-        FlashWriteByteBlocking(startingAddress , 6,endAddress.buffer[1]);
+        FlashWriteByteBlocking(startingAddress , 3,0x00);
+        FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
+        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
         break;
       }
       searchAddress += 1;
+      Serial<<"4b\r\n";
       if (searchAddress > 0x3FFF){
-        searchAddress -= 0x3FFF;
+        Serial<<"5b\r\n";
+        searchAddress = 0;
       }
+      
       FlashGetArray(searchAddress, 1,2,recordNumber.buffer);
+      Serial<<"6b\r\n";
+      Serial<<recordNumber.val<<","<<searchAddress<<"\r\n";
+      Serial<<_HEX(recordNumber.buffer[0])<<","<<_HEX(recordNumber.buffer[1])<<"\r\n";
+      //Serial<<
       if (recordNumber.val != *startingRecordNumber){
+        Serial<<"7b\r\n";
         endOfRecordFound = true;
         startingAddress = index ;
         endAddress.val =  index;
         FlashWriteByteBlocking(startingAddress,  0,WRITE_COMPLETE_REC_END);
 
-        FlashWriteByteBlocking(startingAddress , 4,0x00);
-        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[0]);
-        FlashWriteByteBlocking(startingAddress , 6,endAddress.buffer[1]);
+        FlashWriteByteBlocking(startingAddress , 3,0x00);
+        FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
+        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
       }
       break;
     case WRITE_COMPLETE_REC_END://
+      Serial<<"c\r\n";
       FlashGetArray((searchAddress + 1) , 2,sizeof(recordNumber.buffer),recordNumber.buffer);
       startingAddress = index;
       if (recordNumber.val != *startingRecordNumber){
         //startingAddress = index;
-        endAddress.val =  searchAddress - 1;
+        endAddress.val =  searchAddress;
         FlashWriteByteBlocking(endAddress.val, 0 ,WRITE_COMPLETE_REC_END);
 
 
       }
-      FlashWriteByteBlocking(startingAddress , 4,0x00);
-      FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[0]);
-      FlashWriteByteBlocking(startingAddress , 6,endAddress.buffer[1]);
+      
+      FlashWriteByteBlocking(startingAddress , 3,0x00);
+      FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
+      FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
       endOfRecordFound = true;
 
       break;
     default:
+      Serial<<"d\r\n";
       endOfRecordFound = true;
 
       if (searchAddress == 0){
-        searchAddress -= 0x3FFF;
+        searchAddress = 0x3FFF;
       }
       else{
         searchAddress -= 1;
@@ -452,25 +472,27 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
       if (searchAddress == index){
         while(VerifyWriteReady() == false){
         }
+        Serial<<"d1\r\n";
         startingAddress = index;
         endAddress.val =  index;
         FlashWriteByteBlocking(startingAddress, 0,WRITE_COMPLETE_REC_END);
 
-        FlashWriteByteBlocking(startingAddress , 4,0x00);
-        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[0]);
-        FlashWriteByteBlocking(startingAddress , 6,endAddress.buffer[1]);
+        FlashWriteByteBlocking(startingAddress , 3,0x00);
+        FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
+        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
       }
       else{
-        endOfRecordFound = true;
+        //endOfRecordFound = true;
         while(VerifyWriteReady() == false){
         }
+        Serial<<"d2\r\n";
         startingAddress = index;
-        endAddress.val =  index;
+        endAddress.val =  searchAddress;
         FlashWriteByteBlocking(startingAddress, 0 ,WRITE_COMPLETE_REC_END);
 
-        FlashWriteByteBlocking(startingAddress , 4,0x00);
-        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[0]);
-        FlashWriteByteBlocking(startingAddress , 6,endAddress.buffer[1]);
+        FlashWriteByteBlocking(startingAddress , 3,0x00);
+        FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
+        FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
       }
 
       break;
@@ -490,9 +512,9 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber){
 
       FlashWriteByteBlocking(startingAddress,  0,WRITE_COMPLETE_REC_END);
 
-      FlashWriteByteBlocking(startingAddress , 4,0x00);
-      FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[0]);
-      FlashWriteByteBlocking(startingAddress , 6,endAddress.buffer[1]);
+      FlashWriteByteBlocking(startingAddress , 3,0x00);
+      FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
+      FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
     }
   }
 
@@ -538,13 +560,17 @@ uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
 
 boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes, uint8_t readBuffer[]){
   uint32_u addressOutput;
-  if (sizeof(readBuffer) != numBytes){
+  /*if (sizeof(readBuffer) != numBytes){
     return false;
-  }
-  if (numBytes > 256){
+  }*/
+  while(VerifyWriteReady() == false){
+  } 
+  /*if (numBytes > 256){
+    Serial<<"--==\r\n";
     return false;
-  }
-  if (numBytes < (256 - byteAddress) ){
+  }*/
+  if (numBytes > (256 - byteAddress) ){
+    Serial<<"++==\r\n";
     return false;
   }
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
@@ -597,10 +623,11 @@ boolean FlashWriteByte(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeB
 
 boolean FlashWriteByteBlocking(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeByte){
   uint32_u addressOutput;
-
-  if (VerifyWriteReady() == false){
-    return false;
+  while(VerifyWriteReady() == false){
   }
+  /*if (VerifyWriteReady() == false){
+    return false;
+  }*/
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
   FlashSSLow();
   SPI.transfer(PROGRAM_PAGE);
@@ -840,6 +867,7 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
 
 
 

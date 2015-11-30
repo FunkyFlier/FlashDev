@@ -34,6 +34,8 @@ void setup(){
   MakeRecord();
   Serial<<"last record search\r\n";
   SearchForLastRecord();
+  Serial<<"---\r\n";
+  FlashDump(0x00,0x01);
   /*Serial<<"fill flash\r\n";
    FillFlash();
    Serial<<"verify fill\r\n";
@@ -52,12 +54,15 @@ void loop(){
 
 }
 void MakeRecord(){
+  for(uint16_t i = 0; i < 256; i++){
+    byteBuffer[i] = 0xAA;
+  }
   byteBuffer[0] = 0x1F;
   byteBuffer[1] = 0x00;
   byteBuffer[2] = 0x00;
-  byteBuffer[3] = 0x00;
-  byteBuffer[4] = 0x14;
-  byteBuffer[5] = 0x00;
+  byteBuffer[3] = 0xFF;
+  byteBuffer[4] = 0xFF;
+  byteBuffer[5] = 0xFF;
   while(VerifyWriteReady() == false){
     //Serial<<"1\r\n";
     DispStatRegs();
@@ -75,7 +80,7 @@ void MakeRecord(){
     FlashWritePage(i,256,byteBuffer);
   }
   
-  byteBuffer[0] = 0x2F;
+  byteBuffer[0] = 0x3F;
   byteBuffer[1] = 0x00;
   byteBuffer[2] = 0x00;
   while(VerifyWriteReady() == false){
@@ -83,7 +88,8 @@ void MakeRecord(){
     DispStatRegs();
   }
   FlashWritePage(0x14,256,byteBuffer);
-  FlashDump(0x00,0x14);
+  FlashDump(0x00,0x01);
+  
 }
 
 /*void FillCompleteRecords(){
