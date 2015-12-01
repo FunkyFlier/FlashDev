@@ -3,7 +3,11 @@
 
 #include <Arduino.h>
 
+void LoggingStateMachine();
+void LogHandler();
 
+void WriteBufferRemainder();
+boolean WriteBufferHandler(uint8_t, uint8_t*);
 void CheckEraseToPageBounds(uint16_t );
 void VerifyPageWriteReady();
 void LogBuilder();  
@@ -38,3 +42,4 @@ uint8_t GetStatusReg();
 void DispStatRegs();
 
 #endif
+//

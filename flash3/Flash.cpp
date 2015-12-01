@@ -29,6 +29,8 @@ boolean startNewLog = false,endCurrentLog = false,startWrite = false,loggingRead
 
 
 void LoggingStateMachine(){
+  //handles chip erasure and ready status 
+  //set the ready to log boolean
   static uint16_t nextBlockAddress = 0;
   static uint8_t pageCount = 0;
   static uint8_t loggingState = WRITE_READY;
@@ -128,11 +130,13 @@ void LoggingStateMachine(){
   }
 }
 void LogHandler(){
+  //checks loggingReady and time interval to call the function to write the buffer
   //do logging
   //call WriteBufferHandler
 }
 
 void WriteBufferRemainder(){
+  //any data remaining in the output buffer is written 
   uint16_u outInt16;
   outInt16.val = currentRecordNumber;
   writeBuffer[0] = WRITE_STARTED_REC_END;
@@ -150,7 +154,8 @@ void WriteBufferRemainder(){
   }
   currentRecordAddress = currentPageAddress;
 }
-boolean WriteBufferHandler(uint8_t numBytes, uint8_t *inputBuffer){
+boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer[]){
+  //takes data from the loghandler and writes it to the flash memory
   uint16_u outInt16;
   boolean bufferToFlash = false;
   if (writeBufferIndex == 0){
@@ -184,13 +189,16 @@ void LoggingInit(){
 }
 
 void VerifyPageWriteReady(){
-  //if first byte is 0xFF assume that the page is write ready
+  //called during init 
+  //checks to see if the next 4k block is erased 
   uint16_t next4KBoundary; 
   next4KBoundary = (currentPageAddress & 0xFFF0) + 0x0010;
   if (next4KBoundary > 0x3FF0){
     next4KBoundary = 0;
   }
   if ((currentPageAddress & BLOCK_MASK_4K) == 0x00){
+    while(VerifyWriteReady() == false){
+    }
     FlashEraseBlock4k(currentPageAddress);
   }
   else{
@@ -201,11 +209,11 @@ void VerifyPageWriteReady(){
     CheckEraseToPageBounds(currentPageAddress);
   }
   currentRecordAddress = currentPageAddress;
-  //startLogging = true;
 }
 
 void CheckEraseToPageBounds(uint16_t currentAddress){
-
+  //checks if the remaining pages in the block are erased
+  //if the remaineder of the 4k block is not erased it is set to zero
   uint8_t numPagesToCheck;
   uint16_t next4KBoundary;
   numPagesToCheck = currentAddress & 0x00F;
@@ -227,12 +235,15 @@ void CheckEraseToPageBounds(uint16_t currentAddress){
 
 }
 void SearchForLastRecord(){
+  //called during init
+  //set the record number and address to start logging
+  //if start of log data is partial the log is completed
   uint8_t  firstByte;
   uint16_t recordNumber,lastPageAddress;
   boolean validRecord,recordComplete;
   uint32_u fullAddress;
-  //for(uint16_t i = 0; i <= 0x3FFF; i++){
-  for(uint16_t i = 0; i <= 0x00FF; i++){
+  for(uint16_t i = 0; i <= 0x3FFF; i++){
+    //for(uint16_t i = 0; i <= 0x00FF; i++){
     fullAddress.val = (uint32_t)i << 8;
     FlashSSLow();
     SPI.transfer(READ_ARRAY);
@@ -257,6 +268,9 @@ void SearchForLastRecord(){
       if (recordNumber >= currentRecordNumber){ 
         currentRecordNumber = recordNumber + 1;
         currentPageAddress = lastPageAddress + 1;
+        if (currentPageAddress > 0x3FFF){
+          currentPageAddress = 0;
+        }
       }
       if (recordNumber == 0x3FFF){//or 3FFF?
         currentRecordNumber = 0;
@@ -293,6 +307,8 @@ void SearchForLastRecord(){
 
 }
 boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAddress, uint8_t *recordComplete){
+  //if a start of record is found this sets the bounds for the record
+  //todo return void
   uint16_u inInt16;
   uint32_u fullAddress;
   uint8_t inByte;
@@ -362,6 +378,7 @@ boolean GetRecordNumber(uint16_t index, uint16_t *recordNumber, uint16_t *endAdd
 }
 
 void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* finalAddress){
+  //completes the start of log data
   boolean endOfRecordFound = false;
   uint8_t startByte;
   uint16_t searchCount = 0;
@@ -379,14 +396,14 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
     switch(startByte){
     case WRITE_COMPLETE://verify record number
       Serial<<"a\r\n";
-      
+
       FlashGetArray(searchAddress,1,sizeof(recordNumber.buffer),recordNumber.buffer);
       if (recordNumber.val != *startingRecordNumber){
         Serial<<"a**\r\n";
         endOfRecordFound = true;
         searchAddress -= 1;
         endAddress.val =  searchAddress;
-        
+
         startingAddress = index;
         FlashWriteByteBlocking(searchAddress,   0,WRITE_COMPLETE_REC_END);
 
@@ -426,7 +443,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
         Serial<<"5b\r\n";
         searchAddress = 0;
       }
-      
+
       FlashGetArray(searchAddress, 1,2,recordNumber.buffer);
       Serial<<"6b\r\n";
       Serial<<recordNumber.val<<","<<searchAddress<<"\r\n";
@@ -456,7 +473,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
 
 
       }
-      
+
       FlashWriteByteBlocking(startingAddress , 3,0x00);
       FlashWriteByteBlocking(startingAddress , 4,endAddress.buffer[0]);
       FlashWriteByteBlocking(startingAddress , 5,endAddress.buffer[1]);
@@ -506,9 +523,10 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
     }
 
     searchCount++;
+    Serial<<_HEX(searchCount)<<"\r\n";
     if (searchCount == 0x3FFF){
       endOfRecordFound = true;
-      startingAddress = index ;
+      startingAddress = index;
 
       if (index == 0){
         endAddress.val =  0x3FFF;
@@ -516,7 +534,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
       else{
         endAddress.val =  index - 1;
       }
-
+      Serial<<_HEX(endAddress.val)<<"\r\n";
       FlashWriteByteBlocking(startingAddress,  0,WRITE_COMPLETE_REC_END);
 
       FlashWriteByteBlocking(startingAddress , 3,0x00);
@@ -532,6 +550,7 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
 //low level functions read / write / erase /init
 //init
 void FlashInit(){
+  //waits for the chip to be ready then unprotects all registers
   while(VerifyWriteReady() == false){
     Serial<<"init waiting for status reg to clear 1\r\n";
     Serial<<GetStatusReg()<<"\r\n";
@@ -553,6 +572,7 @@ void FlashInit(){
 }
 //read
 uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
+  //returns a single byte
   uint32_u addressOutput;
   uint8_t inByte;
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
@@ -567,16 +587,18 @@ uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
 }
 
 boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes, uint8_t readBuffer[]){
+  //returns an array of arbitrary length
+  //to do make non blocking
   uint32_u addressOutput;
   /*if (sizeof(readBuffer) != numBytes){
-    return false;
-  }*/
+   return false;
+   }*/
   while(VerifyWriteReady() == false){
   } 
   /*if (numBytes > 256){
-    Serial<<"--==\r\n";
-    return false;
-  }*/
+   Serial<<"--==\r\n";
+   return false;
+   }*/
   if (numBytes > (256 - byteAddress) ){
     Serial<<"++==\r\n";
     return false;
@@ -594,6 +616,7 @@ boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes
   return true;
 }
 boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]){
+  //returns an entire page of data
   uint32_u addressOutput;
   if (numBytes != 256){
     return false;
@@ -614,10 +637,11 @@ boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]
 }
 //write
 boolean FlashWriteByte(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeByte){
+  //writes a single byte
   uint32_u addressOutput;
 
   while(VerifyWriteReady() == false){
-  } 
+  } //todo why is this blocking?
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
   FlashSSLow();
   SPI.transfer(PROGRAM_PAGE);
@@ -628,14 +652,15 @@ boolean FlashWriteByte(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeB
   FlashSSHigh();
   return true;
 }
-
+//todo return for write functions? 
 boolean FlashWriteByteBlocking(uint16_t pageAddress, uint8_t byteAddress, uint8_t writeByte){
+  //waits for device ready then writes a single byte
   uint32_u addressOutput;
   while(VerifyWriteReady() == false){
   }
   /*if (VerifyWriteReady() == false){
-    return false;
-  }*/
+   return false;
+   }*/
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
   FlashSSLow();
   SPI.transfer(PROGRAM_PAGE);
@@ -647,15 +672,16 @@ boolean FlashWriteByteBlocking(uint16_t pageAddress, uint8_t byteAddress, uint8_
   return true;
 }
 boolean FlashWritePartialPage(uint16_t pageAddress, uint8_t byteAddress, uint8_t numBytes, uint8_t writeBuffer[]){
+  //writes
   uint32_u addressOutput;
 
   if (VerifyWriteReady() == false){
     return false;
-  }
-  if (sizeof(writeBuffer) != numBytes){
-    return false;
-  }
-  if (numBytes < (256 - byteAddress) ){
+  }//todo remove if write functions return void
+  /*if (sizeof(writeBuffer) != numBytes){
+   return false;
+   }*/
+  if (numBytes > (256 - byteAddress) ){
     return false;
   }
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
@@ -672,6 +698,7 @@ boolean FlashWritePartialPage(uint16_t pageAddress, uint8_t byteAddress, uint8_t
 }
 
 boolean FlashWritePage(uint16_t pageAddress, uint16_t numBytes, uint8_t writeBuffer[]){
+  //writes 256 bytes to flash chip
   uint32_u addressOutput;
 
   if (VerifyWriteReady() == false){
@@ -694,6 +721,7 @@ boolean FlashWritePage(uint16_t pageAddress, uint16_t numBytes, uint8_t writeBuf
 }
 //erase
 boolean ClearPage(uint16_t pageAddress){
+  //sets all data on a page to zero
   uint32_u addressOutput;
   if (VerifyWriteReady() == false){
     return false;
@@ -712,6 +740,7 @@ boolean ClearPage(uint16_t pageAddress){
 }
 
 boolean FlashEraseBlock4k(uint16_t blockAddress){
+  //sets a 4k block to 0xFF
   uint32_u addressOutput;
   if (blockAddress > 0x3FF0){
     return false;
@@ -736,6 +765,7 @@ boolean FlashEraseBlock4k(uint16_t blockAddress){
   } 
 }
 boolean FlashEraseBlock32k(uint16_t blockAddress){
+  //sets a 32k block to 0xFF
   uint32_u addressOutput;
   if (blockAddress > 0x3F80){
     return false;
@@ -759,6 +789,7 @@ boolean FlashEraseBlock32k(uint16_t blockAddress){
   } 
 }
 boolean FlashEraseBlock64k(uint16_t blockAddress){
+  //sets a 64k block to 0xFF
   uint32_u addressOutput;
   if (blockAddress > 0x3F00){
     return false;
@@ -782,7 +813,7 @@ boolean FlashEraseBlock64k(uint16_t blockAddress){
   } 
 }
 boolean FlashEraseChip(){
-
+  //sets entire chip to 0xFF
   while(VerifyWriteReady() == false){
     Serial<<"Erase wait 1\r\n";
     delay(1000);
@@ -814,6 +845,7 @@ boolean FlashEraseChip(){
 }
 //status
 boolean CheckForSuccessfulWrite(){
+  //todo remove
   uint8_t statusReg;
   statusReg = GetStatusReg();
   if ( (statusReg & WRITE_ERROR_MASK) == 0x00){
@@ -825,11 +857,12 @@ boolean CheckForSuccessfulWrite(){
 }
 
 uint8_t GetStatusReg(){
-  uint8_t inByte1,inByte2;
+  //returns the first byte of the status registers
+  uint8_t inByte1;//,inByte2;
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
   inByte1 = SPI.transfer(0);
-  inByte2 = SPI.transfer(0);
+  //inByte2 = SPI.transfer(0);
   FlashSSHigh(); 
   return inByte1;
   //return 0 device ready write not enabled
@@ -838,6 +871,7 @@ uint8_t GetStatusReg(){
   //return 3 device busy write enabled 
 }
 void DispStatRegs(){
+  //todo remove after debugging is complete
   uint8_t inByte1,inByte2;
   FlashSSLow();
   SPI.transfer(READ_STATUS_REG);
@@ -847,18 +881,14 @@ void DispStatRegs(){
   Serial<<"SB1: "<<_HEX(inByte1)<<"\r\nSB2: "<<_HEX(inByte2)<<"\r\n";
 }
 
-void WriteEnable(){
-  FlashSSLow();
-  SPI.transfer(WRITE_ENABLE);
-  FlashSSHigh();
-
-}
 boolean VerifyWriteReady(){
   uint8_t statusReg;
   statusReg = GetStatusReg() & 0x03;
   switch(statusReg){
   case 0://device ready write not enabled
-    WriteEnable();
+    FlashSSLow();
+    SPI.transfer(WRITE_ENABLE);
+    FlashSSHigh();
     return true;
     break;
   case 1://device busy wrtie not enabled
@@ -875,6 +905,7 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
 
 
 

@@ -35,7 +35,7 @@ void setup(){
   Serial<<"last record search\r\n";
   SearchForLastRecord();
   Serial<<"---\r\n";
-  FlashDump(0x00,0x01);
+  FlashDumpBytes(0x00,0x01,10);
   /*Serial<<"fill flash\r\n";
    FillFlash();
    Serial<<"verify fill\r\n";
@@ -65,30 +65,30 @@ void MakeRecord(){
   byteBuffer[5] = 0xFF;
   while(VerifyWriteReady() == false){
     //Serial<<"1\r\n";
-    DispStatRegs();
+    //DispStatRegs();
   }
   FlashWritePage(0,256,byteBuffer);
   
   byteBuffer[0] = 0x3F;
   byteBuffer[1] = 0x00;
   byteBuffer[2] = 0x00;
-  for (uint16_t i = 1; i <0x14; i++){
+  for (uint16_t i = 1; i <0x3FFF; i++){
     while(VerifyWriteReady() == false){
       //Serial<<"2\r\n";
-      DispStatRegs();
+      //DispStatRegs();
     }
     FlashWritePage(i,256,byteBuffer);
   }
   
-  byteBuffer[0] = 0x2F;
+  byteBuffer[0] = 0xFF;
   byteBuffer[1] = 0x00;
-  byteBuffer[2] = 0x01;
+  byteBuffer[2] = 0x00;
   while(VerifyWriteReady() == false){
     //Serial<<"3\r\n";
-    DispStatRegs();
+    //DispStatRegs();
   }
-  FlashWritePage(0x14,256,byteBuffer);
-  FlashDump(0x00,0x01);
+  FlashWritePage(0x3FFF,256,byteBuffer);
+  FlashDumpBytes(0x00,0x01,10);
   
 }
 
@@ -336,6 +336,40 @@ void FlashDump(uint16_t lowerBound, uint16_t upperBound){
     }
     else{
       for(uint16_t j = 0; j < 256; j++){
+        Serial<<_HEX(outputArray[j])<<"\r\n";
+      }
+    }
+  }
+}
+
+
+void FlashDumpBytes(uint16_t lowerBound, uint16_t upperBound,uint8_t numBytes){
+  uint8_t outputArray[256];
+  uint8_t inByte;
+  if (upperBound > 0x3FFF){
+    upperBound = 0x3FFF;
+  }
+  if (lowerBound > upperBound){
+    lowerBound = 0;
+  }
+  for(uint16_t i = lowerBound; i <= upperBound; i++){
+    Serial<<"page: "<<i<<"\r\n";
+    for(uint16_t j = 0; j < 256; j++){
+      outputArray[j] = 0;
+    }
+    while(VerifyWriteReady() == false){
+      Serial<<"* ";
+      DispStatRegs();
+    }
+    if (FlashGetPage(i,sizeof(outputArray),outputArray) == false){
+      Serial<<"failed to get page\r\n";
+      while(1){
+        Serial<<"fail\r\n";
+        delay(2000);
+      }
+    }
+    else{
+      for(uint16_t j = 0; j < numBytes; j++){
         Serial<<_HEX(outputArray[j])<<"\r\n";
       }
     }
