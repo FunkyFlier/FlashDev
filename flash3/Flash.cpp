@@ -193,22 +193,26 @@ void VerifyPageWriteReady(){
   //checks to see if the next 4k block is erased 
   uint16_t next4KBoundary; 
   next4KBoundary = (currentPageAddress & 0xFFF0) + 0x0010;
+  Serial<<_HEX(next4KBoundary)<<","<<_HEX(currentPageAddress)<<"\r\n";
   if (next4KBoundary > 0x3FF0){
     next4KBoundary = 0;
   }
   if ((currentPageAddress & BLOCK_MASK_4K) == 0x00){
+    Serial<<"at 4k bound\r\n";
     while(VerifyWriteReady() == false){
     }
     FlashEraseBlock4k(currentPageAddress);
+    currentRecordAddress = currentPageAddress;
   }
   else{
-
+    Serial<<"not at 4k bound\r\n";
     while(VerifyWriteReady() == false){
     }
     FlashEraseBlock4k(next4KBoundary);
     CheckEraseToPageBounds(currentPageAddress);
   }
-  currentRecordAddress = currentPageAddress;
+  currentPageAddress = currentRecordAddress;
+  Serial<<"current addr: "<<currentRecordAddress<<","<<currentPageAddress<<"\r\n";
 }
 
 void CheckEraseToPageBounds(uint16_t currentAddress){
@@ -216,28 +220,34 @@ void CheckEraseToPageBounds(uint16_t currentAddress){
   //if the remaineder of the 4k block is not erased it is set to zero
   uint8_t numPagesToCheck;
   uint16_t next4KBoundary;
-  numPagesToCheck = currentAddress & 0x00F;
+  numPagesToCheck = 0x10 - (currentAddress & 0x00F);
   next4KBoundary = (currentAddress & 0xFFF0) + 0x0010;
-
+  if (next4KBoundary > 0x3FF0){
+    next4KBoundary = 0;
+  }
+  Serial<<"cetpb"<<numPagesToCheck<<","<<next4KBoundary<<"\r\n";
   for(uint8_t i = 0; i < numPagesToCheck; i++){
     while(VerifyWriteReady() == false){
     }
     if(FlashGetByte((currentAddress + i),0) != 0xFF){
+      Serial<<"first byte failed\r\n";
       for(uint8_t i = 0; i < numPagesToCheck; i++){
         while(VerifyWriteReady() == false){
         }
         ClearPage(currentAddress + i);
       }
-      currentPageAddress = next4KBoundary;
+      currentRecordAddress = next4KBoundary;
       return;
     }
   }
+  currentRecordAddress = currentAddress;
 
 }
 void SearchForLastRecord(){
   //called during init
   //set the record number and address to start logging
   //if start of log data is partial the log is completed
+  boolean firstRecord = true;
   uint8_t  firstByte;
   uint16_t recordNumber,lastPageAddress;
   boolean validRecord,recordComplete;
@@ -277,11 +287,15 @@ void SearchForLastRecord(){
         currentRecordNumber = 0;
         currentPageAddress = 0;
       }
-
+      if (firstRecord == true){
+        firstRecord = false;
+        lowestRecordNumber = recordNumber;
+      }
       if (recordNumber <= lowestRecordNumber){
         lowestRecordNumber = recordNumber;
         lowestRecordAddress = i;
       }
+
       Serial<<recordNumber<<","<<currentRecordNumber<<","<<_HEX(currentPageAddress)<<"\r\n";
       /*if(validRecord == true){
        if (recordComplete == false){
@@ -329,12 +343,12 @@ void CompleteRecord(uint16_t index, uint16_t* startingRecordNumber, uint16_t* fi
     startByte = FlashGetByte(searchAddress,0);
     switch(startByte){
     case WRITE_COMPLETE://verify record number
-      Serial<<"a\r\n";
+      //Serial<<"a\r\n";
 
       FlashGetArray(searchAddress,1,sizeof(recordNumber.buffer),recordNumber.buffer);
       if (recordNumber.val != *startingRecordNumber){
         Serial<<"a**\r\n";
-        
+
         endOfRecordFound = true;
         searchAddress -= 1;
         endAddress.val =  searchAddress;
@@ -912,6 +926,7 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
 
 
 
