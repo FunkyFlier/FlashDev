@@ -42,7 +42,7 @@ uint8_t GetStatusReg();
 void DispStatRegs();
 //to do move after debugging
 extern uint8_t loggingState;
-extern boolean startNewLog,endCurrentLog,startWrite,loggingReady;
+extern boolean startNewLog,endCurrentLog,writePageStarted,loggingReady;
 
 #endif
 //

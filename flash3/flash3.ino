@@ -29,9 +29,13 @@ void setup(){
   /*Serial<<"erase chip\r\n";
   FlashEraseChip();
   Serial<<"last record search\r\n";*/
-  FlashEraseBlock4k(0);
+  //FlashEraseBlock4k(0);
+  FlashEraseBlock64k(0);
+  MakeRecord();
   SearchForLastRecord();
   VerifyPageWriteReady();
+  Serial<<"after verify ready----------------------------------\r\n";
+  FlashDump(0x00,0x20);
   //FlashDump(0x00,0x04);
   //Serial<<"verify erase\r\n";
   //VerifyErase();
@@ -80,11 +84,13 @@ void LoggingTest(){
   logTestBuffer[0] = 0xAA;
   logTestBuffer[99] = 0x55;
   startNewLog = true;
-  while(logCount < 3){
+  while(logCount < 60){
     LoggingStateMachine();
     if (loggingReady == true){
-      Serial<<logCount<<"\r\n";
-      Serial<<WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer)<<"\r\n";
+      //Serial<<"log count: "<<logCount<<"\r\n";
+      //Serial<<WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer)<<"\r\n";
+      //writePageStarted = WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer);
+      WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer);
       logCount++;
     }
   }
@@ -96,14 +102,14 @@ void LoggingTest(){
   while(loggingState != WRITE_READY){
     LoggingStateMachine();
   }
-  FlashDump(0x00,0x01);
+  FlashDump(0x00,0x20);
 }
 
 void MakeRecord(){
   for(uint16_t i = 0; i < 256; i++){
     byteBuffer[i] = 0xAA;
   }
-  byteBuffer[0] = 0x1F;
+  byteBuffer[0] = 0x7F;
   byteBuffer[1] = 0x01;
   byteBuffer[2] = 0x00;
   byteBuffer[3] = 0xFF;
@@ -113,12 +119,12 @@ void MakeRecord(){
     //Serial<<"1\r\n";
     //DispStatRegs();
   }
-  FlashWritePage(0,256,byteBuffer);
+  FlashWritePage(0x10,256,byteBuffer);
 
   byteBuffer[0] = 0x3F;
   byteBuffer[1] = 0x01;
   byteBuffer[2] = 0x00;
-  for (uint16_t i = 1; i < 0x0D; i++){
+  for (uint16_t i = 0x11; i < 0xFF; i++){
     while(VerifyWriteReady() == false){
       //Serial<<"2\r\n";
       //DispStatRegs();
@@ -133,9 +139,10 @@ void MakeRecord(){
     //Serial<<"3\r\n";
     //DispStatRegs();
   }
-  FlashWritePage(0x0D,256,byteBuffer);
-
-  byteBuffer[0] = 0x3F;
+  FlashWritePage(0xFF,256,byteBuffer);
+  Serial<<"initial falsh dump----------------------------------\r\n";
+  FlashDump(0x00,0x20);
+/*  byteBuffer[0] = 0x3F;
   byteBuffer[1] = 0x09;
   byteBuffer[2] = 0x00;
   while(VerifyWriteReady() == false){
@@ -192,7 +199,7 @@ void MakeRecord(){
   FlashDumpBytes(0x3FFF,0x3FFF,7);
   //-------------------------------------------------
 
-
+*/
 }
 
 /*void FillCompleteRecords(){
@@ -439,8 +446,9 @@ void FlashDump(uint16_t lowerBound, uint16_t upperBound){
     }
     else{
       for(uint16_t j = 0; j < 256; j++){
-        Serial<<_HEX(outputArray[j])<<"\r\n";
+        Serial<<_HEX(outputArray[j])<<",";
       }
+      Serial<<"\r\n";
     }
   }
 }

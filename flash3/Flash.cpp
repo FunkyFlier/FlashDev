@@ -33,15 +33,19 @@ void LoggingStateMachine(){
   switch(loggingState){
   case CHECK_4K:
     Serial<<"CHECK_4K\r\n";
+    //loggingReady = false;
     if(VerifyWriteReady() == false){
       break;
     }
+    Serial<<_HEX(FlashGetByte((nextBlockAddress + pageCount),0))<<"\r\n";
     if (FlashGetByte((nextBlockAddress + pageCount),0) != 0xFF){
+      Serial<<"found to be erased\r\n";
       loggingState = ERASE;
       break;
     }
     pageCount++;
     if(pageCount == 16){
+      pageCount = 0;
       loggingState = WRITE_READY;
     }
     break;
@@ -91,6 +95,7 @@ void LoggingStateMachine(){
     if (currentPageAddress > 0x3FFF){
       currentPageAddress = 0;
     }
+    //Serial<<"test &: "<<","<<_HEX(currentPageAddress)<<","<<_HEX(currentPageAddress & 0x000F)<<"\r\n";
     if ((currentPageAddress & 0x000F) == 0x000F){
       loggingState = CHECK_4K;
       pageCount = 0;
@@ -182,27 +187,6 @@ void LoggingStateMachine(){
 
   }
 }
-void WriteBufferRemainder(){
-  //any data remaining in the output buffer is written 
-  uint16_u outInt16;
-  outInt16.val = currentRecordNumber;
-  if (writeBufferIndex == 0){
-    currentPageAddress -= 1;
-    FlashWriteByte(currentPageAddress,0,WRITE_COMPLETE_REC_END);
-    loggingState = UPDATE_FIRST_PAGE;
-    return;
-  }
-  writeBuffer[0] = WRITE_STARTED_REC_END;
-  writeBuffer[1] = outInt16.buffer[0];
-  writeBuffer[2] = outInt16.buffer[1];
-  for(uint16_t i = writeBufferIndex; i < 256; i++){
-    writeBuffer[i] = 0xFF;
-  }
-  writeBufferIndex = 0;
-  FlashWritePage(currentPageAddress,256,writeBuffer);
-  loggingState = COMPLETE_LAST_PAGE;
-
-}
 
 
 
@@ -245,39 +229,47 @@ void FlashDump2(uint16_t lowerBound, uint16_t upperBound){
     }
   }
 }
+void WriteBufferRemainder(){
+  //any data remaining in the output buffer is written 
+  uint16_u outInt16;
+  outInt16.val = currentRecordNumber;
+  if (writeBufferIndex == 0){
+    currentPageAddress -= 1;
+    FlashWriteByte(currentPageAddress,0,WRITE_COMPLETE_REC_END);
+    loggingState = UPDATE_FIRST_PAGE;
+    return;
+  }
+  writeBuffer[0] = WRITE_STARTED_REC_END;
+  writeBuffer[1] = outInt16.buffer[0];
+  writeBuffer[2] = outInt16.buffer[1];
+  for(uint16_t i = writeBufferIndex; i < 256; i++){
+    writeBuffer[i] = 0xFF;
+  }
+  writeBufferIndex = 0;
+  FlashWritePage(currentPageAddress,256,writeBuffer);
+  loggingState = COMPLETE_LAST_PAGE;
+
+}
 
 
-boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer[]){
+boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer[]){//make void?
   //takes data from the loghandler and writes it to the flash memory
   uint16_u outInt16;
   boolean bufferToFlash = false;
-  Serial<<"write buff idx: "<<writeBufferIndex<<"\r\n";
-  FlashDump2(0x00,0x01);
-  if (writeBufferIndex == 0){
-    writeBuffer[0] = WRITE_STARTED;
-    writeBuffer[1] = outInt16.buffer[0];
-    writeBuffer[2] = outInt16.buffer[1];
-    writeBufferIndex == 4;
-  }
+
   for(uint16_t i = 0; i < numBytes; i++){
     writeBuffer[writeBufferIndex] = inputBuffer[i];
     writeBufferIndex++;
     if (writeBufferIndex == 0){
       FlashWritePage(currentPageAddress,256,writeBuffer);
       loggingState = COMPLETE_PAGE;
-      /*for(uint16_t i = 0; i < 256; i++){
-       Serial<<writeBuffer[i]<<",";
-       }
-       Serial<<"\r\n";*/
+      writeBuffer[0] = WRITE_STARTED;
+      writeBuffer[1] = outInt16.buffer[0];
+      writeBuffer[2] = outInt16.buffer[1];
+      writeBufferIndex = 4;
+      loggingReady = false;
       bufferToFlash = true;
-      /*currentPageAddress += 1;
-       if (currentPageAddress > 0x3FFF){
-       currentPageAddress = 0;
-       }
-       writeBuffer[0] = WRITE_STARTED;
-       writeBuffer[1] = outInt16.buffer[0];
-       writeBuffer[2] = outInt16.buffer[1];
-       writeBufferIndex == 4;*/
+
     }
   }
 
@@ -839,10 +831,10 @@ boolean FlashWritePage(uint16_t pageAddress, uint16_t numBytes, uint8_t writeBuf
     SPI.transfer(writeBuffer[i]);
   }
   FlashSSHigh();
-  for(uint16_t i = 0; i < 256; i++){
-    Serial<<writeBuffer[i]<<"=";
-  }
-  Serial<<"\r\n";
+  /*for(uint16_t i = 0; i < 256; i++){
+   Serial<<writeBuffer[i]<<"=";
+   }
+   Serial<<"\r\n";*/
   return true;  
 }
 //erase
@@ -1031,6 +1023,8 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
+
 
 
 
