@@ -9,35 +9,30 @@
 #define BLOCK_MASK_64K 0x00FF
 #define LOG_RATE 100
 
-enum LOG_STATES{
-  CHECK_4K,
-  ERASE,
-  WRITE_READY,
-  COMPLETE_PAGE,
-  START_NEW_LOG,
-  END_CURRENT_LOG
-};
+
 
 uint16_t currentRecordNumber, currentRecordAddress, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
 uint32_u currentTime;
 
-uint8_t writeBuffer[256],loggingBuffer[256];
+uint8_t writeBuffer[256];//,loggingBuffer[256];
 
 uint8_t writeBufferIndex = 0;
 
-boolean startNewLog = false,endCurrentLog = false,startWrite = false,loggingReady=false;
+boolean startNewLog = false,endCurrentLog = false,writePageStarted = false,loggingReady=false;
 
+uint8_t loggingState = WRITE_READY;
 
 void LoggingStateMachine(){
   //handles chip erasure and ready status 
   //set the ready to log boolean
   static uint16_t nextBlockAddress = 0;
   static uint8_t pageCount = 0;
-  static uint8_t loggingState = WRITE_READY;
+  //static uint8_t loggingState = WRITE_READY;
   uint16_u outInt16;
 
   switch(loggingState){
   case CHECK_4K:
+    Serial<<"CHECK_4K\r\n";
     if(VerifyWriteReady() == false){
       break;
     }
@@ -51,6 +46,7 @@ void LoggingStateMachine(){
     }
     break;
   case ERASE:
+    Serial<<"ERASE\r\n";
     if(VerifyWriteReady() == false){
       break;
     }
@@ -58,6 +54,7 @@ void LoggingStateMachine(){
     loggingState = WRITE_READY;
     break;
   case WRITE_READY:
+    Serial<<"WRITE_READY\r\n";
     if(VerifyWriteReady() == false){
       break;
     }
@@ -65,26 +62,35 @@ void LoggingStateMachine(){
       endCurrentLog = false;
       startNewLog = false;
       loggingState = START_NEW_LOG;
+      break;
     }
     if (endCurrentLog == true){
       endCurrentLog = false;
       startNewLog = false;
       loggingState = END_CURRENT_LOG;
+      break;
     }
     if (startNewLog == false && endCurrentLog == false){
       loggingReady = true;
-      if (startWrite == true){
+      if (writePageStarted == true){
+        Serial<<"writePageStarted\r\n";        
         loggingState = COMPLETE_PAGE;
         loggingReady = false;
-        startWrite = false;
+        writePageStarted = false;
       }
     }
     break;
   case COMPLETE_PAGE:
+    Serial<<"COMPLETE_PAGE\r\n";
     if(VerifyWriteReady() == false){
+      Serial<<"not write ready\r\n";
       break;
     }
-    FlashWriteByte(currentPageAddress,0,0x3F);
+    FlashWriteByte(currentPageAddress,0,WRITE_COMPLETE);
+    currentPageAddress += 1;
+    if (currentPageAddress > 0x3FFF){
+      currentPageAddress = 0;
+    }
     if ((currentPageAddress & 0x000F) == 0x000F){
       loggingState = CHECK_4K;
       pageCount = 0;
@@ -94,70 +100,159 @@ void LoggingStateMachine(){
       }
       break;
     }
+    loggingState = WRITE_READY;
     break;
   case START_NEW_LOG:
+    Serial<<"START_NEW_LOG\r\n";
     if(VerifyWriteReady() == false){
       break;
     }
     outInt16.val = currentRecordNumber;
-    loggingBuffer[0] = WRITE_STARTED_REC_START;
-    loggingBuffer[1] = outInt16.buffer[0];
-    loggingBuffer[2] = outInt16.buffer[1];
-    loggingBuffer[3] = 0xFF;
-    loggingBuffer[4] = 0xFF;
-    loggingBuffer[5] = 0xFF;
-    FlashWritePartialPage(currentPageAddress,0,6,loggingBuffer);
+    writeBuffer[0] = WRITE_STARTED_REC_START;
+    writeBuffer[1] = outInt16.buffer[0];
+    writeBuffer[2] = outInt16.buffer[1];
+    writeBuffer[3] = 0xFF;
+    writeBuffer[4] = 0xFF;
+    writeBuffer[5] = 0xFF;
+    FlashWritePartialPage(currentPageAddress,0,6,writeBuffer);
     writeBufferIndex = 6;
     loggingState = WRITE_READY;
     break;
   case END_CURRENT_LOG:
+    Serial<<"END_CURRENT_LOG\r\n";
     if(VerifyWriteReady() == false){
       break;
     }
-    if (writeBufferIndex == 0){
-      outInt16.val = currentRecordNumber;
-      loggingBuffer[0] = WRITE_STARTED_REC_END;
-      loggingBuffer[1] = outInt16.buffer[0];
-      loggingBuffer[2] = outInt16.buffer[1];
-      FlashWritePartialPage((currentPageAddress - 1),0,3,loggingBuffer);
-      loggingState = COMPLETE_PAGE;
+
+    WriteBufferRemainder();
+    /*currentRecordAddress = currentPageAddress + 1;
+     if (currentRecordAddress > 0x3FFF){
+     currentRecordAddress = 0;
+     }*/
+    //loggingState = COMPLETE_LAST_PAGE;
+    break;
+  case COMPLETE_LAST_PAGE:  
+    Serial<<"COMPLETE_LAST_PAGE\r\n";
+    if(VerifyWriteReady() == false){
+      Serial<<"not write ready\r\n";
       break;
     }
-    WriteBufferRemainder();
-    loggingState = COMPLETE_PAGE;
+    FlashWriteByte(currentPageAddress,0,WRITE_COMPLETE);
+    loggingState = UPDATE_FIRST_PAGE;
+    break;
+  case UPDATE_FIRST_PAGE:
+    Serial<<"UPDATE_FIRST_PAGE\r\n";
+    if(VerifyWriteReady() == false){
+      Serial<<"not write ready\r\n";
+      break;
+    }
+    outInt16.val = currentPageAddress;
+    writeBuffer[0] = 0x00;
+    writeBuffer[1] = outInt16.buffer[0];
+    writeBuffer[2] = outInt16.buffer[1];
+    FlashWritePartialPage(currentRecordAddress,3,3,writeBuffer);
+    loggingState = BOUND_CHECK;
+    break;
+  case BOUND_CHECK:
+    Serial<<"BOUND_CHECK\r\n";
+    if(VerifyWriteReady() == false){
+      Serial<<"not write ready\r\n";
+      break;
+    }
+    startNewLog = false;
+    endCurrentLog = false;
+    writePageStarted = false;
+    loggingReady = false;
+    currentPageAddress += 1;
+    currentRecordAddress = currentPageAddress;
+    if (currentPageAddress > 0x3FFF){
+      currentPageAddress = 0;
+    }
+    if ((currentPageAddress & 0x000F) == 0x000F){
+      loggingState = CHECK_4K;
+      pageCount = 0;
+      nextBlockAddress = (currentPageAddress & 0xFFF0) + 0x0010;
+      if (nextBlockAddress > 0x3FF0){
+        nextBlockAddress = 0;
+      }
+      break;
+    }
+    loggingState = WRITE_READY;
     break;
 
   }
 }
+void WriteBufferRemainder(){
+  //any data remaining in the output buffer is written 
+  uint16_u outInt16;
+  outInt16.val = currentRecordNumber;
+  if (writeBufferIndex == 0){
+    currentPageAddress -= 1;
+    FlashWriteByte(currentPageAddress,0,WRITE_COMPLETE_REC_END);
+    loggingState = UPDATE_FIRST_PAGE;
+    return;
+  }
+  writeBuffer[0] = WRITE_STARTED_REC_END;
+  writeBuffer[1] = outInt16.buffer[0];
+  writeBuffer[2] = outInt16.buffer[1];
+  for(uint16_t i = writeBufferIndex; i < 256; i++){
+    writeBuffer[i] = 0xFF;
+  }
+  writeBufferIndex = 0;
+  FlashWritePage(currentPageAddress,256,writeBuffer);
+  loggingState = COMPLETE_LAST_PAGE;
+
+}
+
+
+
+
+
 void LogHandler(){
   //checks loggingReady and time interval to call the function to write the buffer
   //do logging
   //call WriteBufferHandler
 }
-
-void WriteBufferRemainder(){
-  //any data remaining in the output buffer is written 
-  uint16_u outInt16;
-  outInt16.val = currentRecordNumber;
-  writeBuffer[0] = WRITE_STARTED_REC_END;
-  writeBuffer[1] = outInt16.buffer[0];
-  writeBuffer[2] = outInt16.buffer[1];
-  writeBufferIndex = 0;
-  FlashWritePage(currentPageAddress,256,writeBuffer);
-  currentPageAddress += 1;
-  if (currentPageAddress > 0x3FFF){
-    currentPageAddress = 0;
+void FlashDump2(uint16_t lowerBound, uint16_t upperBound){
+  uint8_t outputArray[256];
+  uint8_t inByte;
+  if (upperBound > 0x3FFF){
+    upperBound = 0x3FFF;
   }
-  currentRecordNumber += 1;
-  if (currentRecordNumber > 0x3FFF){
-    currentRecordNumber = 0;
+  if (lowerBound > upperBound){
+    lowerBound = 0;
   }
-  currentRecordAddress = currentPageAddress;
+  for(uint16_t i = lowerBound; i <= upperBound; i++){
+    Serial<<"page: "<<i<<"\r\n";
+    for(uint16_t j = 0; j < 256; j++){
+      outputArray[j] = 0;
+    }
+    while(VerifyWriteReady() == false){
+      Serial<<"* ";
+      DispStatRegs();
+    }
+    if (FlashGetPage(i,sizeof(outputArray),outputArray) == false){
+      Serial<<"failed to get page\r\n";
+      while(1){
+        Serial<<"fail\r\n";
+        delay(2000);
+      }
+    }
+    else{
+      for(uint16_t j = 0; j < 256; j++){
+        Serial<<_HEX(outputArray[j])<<"\r\n";
+      }
+    }
+  }
 }
+
+
 boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer[]){
   //takes data from the loghandler and writes it to the flash memory
   uint16_u outInt16;
   boolean bufferToFlash = false;
+  Serial<<"write buff idx: "<<writeBufferIndex<<"\r\n";
+  FlashDump2(0x00,0x01);
   if (writeBufferIndex == 0){
     writeBuffer[0] = WRITE_STARTED;
     writeBuffer[1] = outInt16.buffer[0];
@@ -169,17 +264,23 @@ boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer[]){
     writeBufferIndex++;
     if (writeBufferIndex == 0){
       FlashWritePage(currentPageAddress,256,writeBuffer);
+      loggingState = COMPLETE_PAGE;
+      /*for(uint16_t i = 0; i < 256; i++){
+       Serial<<writeBuffer[i]<<",";
+       }
+       Serial<<"\r\n";*/
       bufferToFlash = true;
-      currentPageAddress += 1;
-      if (currentPageAddress > 0x3FFF){
-        currentPageAddress = 0;
-      }
-      writeBuffer[0] = WRITE_STARTED;
-      writeBuffer[1] = outInt16.buffer[0];
-      writeBuffer[2] = outInt16.buffer[1];
-      writeBufferIndex == 4;
+      /*currentPageAddress += 1;
+       if (currentPageAddress > 0x3FFF){
+       currentPageAddress = 0;
+       }
+       writeBuffer[0] = WRITE_STARTED;
+       writeBuffer[1] = outInt16.buffer[0];
+       writeBuffer[2] = outInt16.buffer[1];
+       writeBufferIndex == 4;*/
     }
   }
+
   return bufferToFlash;
 }
 
@@ -738,6 +839,10 @@ boolean FlashWritePage(uint16_t pageAddress, uint16_t numBytes, uint8_t writeBuf
     SPI.transfer(writeBuffer[i]);
   }
   FlashSSHigh();
+  for(uint16_t i = 0; i < 256; i++){
+    Serial<<writeBuffer[i]<<"=";
+  }
+  Serial<<"\r\n";
   return true;  
 }
 //erase
@@ -926,6 +1031,15 @@ boolean VerifyWriteReady(){
     break;
   }
 }
+
+
+
+
+
+
+
+
+
 
 
 

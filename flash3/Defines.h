@@ -1,3 +1,15 @@
+enum LOG_STATES{
+  CHECK_4K,
+  ERASE,
+  WRITE_READY,
+  COMPLETE_PAGE,
+  START_NEW_LOG,
+  END_CURRENT_LOG,
+  COMPLETE_LAST_PAGE,
+  UPDATE_FIRST_PAGE,
+  BOUND_CHECK
+};
+
 
 #define GyroSSOutput() DDRL |= 1<<0 
 #define GyroSSHigh() PORTL |= 1<<0 

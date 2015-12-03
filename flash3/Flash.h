@@ -27,7 +27,7 @@ boolean FlashGetPage(uint16_t,uint16_t,uint8_t*);
 
 boolean FlashWriteByte(uint16_t,uint8_t, uint8_t);
 boolean FlashWriteByteBlocking(uint16_t,uint8_t, uint8_t);
-boolean FlashWritePartialPage(uint16_t,uint8_t, uint16_t, uint8_t*);
+boolean FlashWritePartialPage(uint16_t,uint8_t, uint8_t, uint8_t*);
 boolean FlashWritePage(uint16_t, uint16_t, uint8_t*);
 
 boolean ClearPage(uint16_t);
@@ -40,6 +40,9 @@ boolean VerifyWriteReady();
 boolean CheckForSuccessfulWrite();
 uint8_t GetStatusReg();
 void DispStatRegs();
+//to do move after debugging
+extern uint8_t loggingState;
+extern boolean startNewLog,endCurrentLog,startWrite,loggingReady;
 
 #endif
 //
