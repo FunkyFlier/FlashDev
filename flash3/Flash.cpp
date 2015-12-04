@@ -261,6 +261,7 @@ boolean WriteBufferHandler(uint8_t numBytes, uint8_t inputBuffer[]){//make void?
     writeBuffer[writeBufferIndex] = inputBuffer[i];
     writeBufferIndex++;
     if (writeBufferIndex == 0){
+      outInt16.val = currentRecordNumber;
       FlashWritePage(currentPageAddress,256,writeBuffer);
       loggingState = COMPLETE_PAGE;
       writeBuffer[0] = WRITE_STARTED;
