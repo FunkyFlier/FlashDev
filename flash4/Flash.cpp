@@ -4,13 +4,6 @@
 #include <Streaming.h>
 #include <Arduino.h> 
 
-#define BLOCK_MASK_4K 0x000F
-#define BLOCK_MASK_32K 0x007F
-#define BLOCK_MASK_64K 0x00FF
-#define LOG_RATE 100
-
-
-
 uint16_t currentRecordNumber, currentRecordAddress, currentPageAddress, lowestRecordNumber, lowestRecordAddress;
 uint32_u currentTime;
 

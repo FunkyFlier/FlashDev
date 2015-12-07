@@ -61,6 +61,11 @@ enum LOG_STATES{
 #define TO_ERASE 0x00
 #define START_OF_REC_LEN 5
 
+#define BLOCK_MASK_4K 0x000F
+#define BLOCK_MASK_32K 0x007F
+#define BLOCK_MASK_64K 0x00FF
+#define LOG_RATE 100
+
 typedef union{
   uint16_t val;
   uint8_t buffer[2];
