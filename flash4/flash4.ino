@@ -454,7 +454,7 @@ void FlashDump(uint16_t lowerBound, uint16_t upperBound){
       Serial<<"* ";
       DispStatRegs();
     }
-    FlashGetPage(i,sizeof(outputArray),outputArray);
+    FlashGetPage(i,outputArray);
     for(uint16_t j = 0; j < 256; j++){
       Serial<<_HEX(outputArray[j])<<",";
     }
@@ -481,7 +481,7 @@ void FlashDumpBytes(uint16_t lowerBound, uint16_t upperBound,uint8_t numBytes){
       //Serial<<"* ";
       //DispStatRegs();
     }
-    FlashGetPage(i,sizeof(outputArray),outputArray);
+    FlashGetPage(i,outputArray);
     for(uint16_t j = 0; j < numBytes; j++){
       Serial<<_HEX(outputArray[j])<<"\r\n";
     }
