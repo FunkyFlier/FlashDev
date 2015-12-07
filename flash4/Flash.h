@@ -22,8 +22,8 @@ void FlashInit();
 void LoggingInit();
 
 uint8_t FlashGetByte(uint16_t,uint8_t);
-boolean FlashGetArray(uint16_t,uint8_t,uint8_t, uint8_t*);
-boolean FlashGetPage(uint16_t,uint16_t,uint8_t*);
+void FlashGetArray(uint16_t,uint8_t,uint8_t, uint8_t*);
+void FlashGetPage(uint16_t,uint8_t*);
 
 void FlashWriteByte(uint16_t,uint8_t, uint8_t);
 void FlashWriteByteBlocking(uint16_t,uint8_t, uint8_t);

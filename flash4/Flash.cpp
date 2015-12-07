@@ -546,22 +546,13 @@ uint8_t FlashGetByte(uint16_t pageAddress, uint8_t byteAddress){
   return inByte;
 }
 
-boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes, uint8_t readBuffer[]){
+void FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes, uint8_t readBuffer[]){
   //returns an array of arbitrary length
   //to do make non blocking
   uint32_u addressOutput;
-  /*if (sizeof(readBuffer) != numBytes){
-   return false;
-   }*/
-  while(VerifyWriteReady() == false){
-  } 
-  /*if (numBytes > 256){
-   Serial<<"--==\r\n";
-   return false;
-   }*/
+  
   if (numBytes > (256 - byteAddress) ){
-    Serial<<"++==\r\n";
-    return false;
+    numBytes = 256 - byteAddress;
   }
   addressOutput.val = ((uint32_t)pageAddress << 8) + (uint32_t)byteAddress;
   FlashSSLow();
@@ -573,14 +564,11 @@ boolean FlashGetArray(uint16_t pageAddress, uint8_t byteAddress,uint8_t numBytes
     readBuffer[i] = SPI.transfer(0x00);
   }
   FlashSSHigh();
-  return true;
 }
-boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]){
+void FlashGetPage(uint16_t pageAddress,uint8_t readBuffer[]){
   //returns an entire page of data
   uint32_u addressOutput;
-  if (numBytes != 256){
-    return false;
-  }
+
   addressOutput.val = ((uint32_t)pageAddress << 8);
 
   FlashSSLow();
@@ -592,7 +580,6 @@ boolean FlashGetPage(uint16_t pageAddress,uint16_t numBytes,uint8_t readBuffer[]
     readBuffer[i] = SPI.transfer(0x00);
   }
   FlashSSHigh();
-  return true;
 
 }
 //write

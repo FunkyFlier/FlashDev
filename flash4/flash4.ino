@@ -28,16 +28,16 @@ void setup(){
 
   Serial<<"erase chip\r\n";
   FlashEraseChip();
-    Serial<<"fill flash\r\n";
-   FillFlash();
-   Serial<<"verify fill\r\n";
-   VerifyFill();
-   Serial<<"4k\r\n";
-   Test4KErase();
-   Serial<<"32k\r\n";
-   Test32KErase();
-   Serial<<"64k\r\n";
-   Test64KErase();
+  Serial<<"fill flash\r\n";
+  FillFlash();
+  Serial<<"verify fill\r\n";
+  VerifyFill();
+  Serial<<"4k\r\n";
+  Test4KErase();
+  Serial<<"32k\r\n";
+  Test32KErase();
+  Serial<<"64k\r\n";
+  Test64KErase();
   Serial<<"last record search\r\n";
   //FlashEraseBlock4k(0);
   //FlashEraseBlock64k(0);
@@ -52,24 +52,24 @@ void setup(){
   //Serial<<"verify erase\r\n";
   //VerifyErase();
   /*Serial<<"Setup record\r\n";
-  MakeRecord();
-  Serial<<"last record search\r\n";
-  SearchForLastRecord();
-  Serial<<"last record search complete\r\n";
-  VerifyPageWriteReady();
-  Serial<<"---\r\n";
-  Serial<<"byte dump0\r\n";
-  FlashDumpBytes(0x00,0x00,7);
-  FlashDumpBytes(0x0E,0x0E,7);
-  FlashDumpBytes(0x0F,0x0F,7);
-  FlashDumpBytes(0x10,0x10,7);
-  FlashDumpBytes(0x11,0x11,7);
-  FlashDumpBytes(0x1F,0x1F,7);
-  FlashDumpBytes(0x3FFD,0x3FFD,7);
-  FlashDumpBytes(0x3FFE,0x3FFE,7);
-  FlashDumpBytes(0x3FFF,0x3FFF,7);*/
+   MakeRecord();
+   Serial<<"last record search\r\n";
+   SearchForLastRecord();
+   Serial<<"last record search complete\r\n";
+   VerifyPageWriteReady();
+   Serial<<"---\r\n";
+   Serial<<"byte dump0\r\n";
+   FlashDumpBytes(0x00,0x00,7);
+   FlashDumpBytes(0x0E,0x0E,7);
+   FlashDumpBytes(0x0F,0x0F,7);
+   FlashDumpBytes(0x10,0x10,7);
+   FlashDumpBytes(0x11,0x11,7);
+   FlashDumpBytes(0x1F,0x1F,7);
+   FlashDumpBytes(0x3FFD,0x3FFD,7);
+   FlashDumpBytes(0x3FFE,0x3FFE,7);
+   FlashDumpBytes(0x3FFF,0x3FFF,7);*/
   LoggingTest();
-  
+
 
   Serial<<"tests complete\r\n";
 
@@ -144,79 +144,79 @@ void MakeRecord(){
     //DispStatRegs();
   }
   FlashWritePage(0x3FF1,byteBuffer);
-  
- /* byteBuffer[0] = 0x7F;
-  byteBuffer[1] = 0x01;
-  byteBuffer[2] = 0x00;
-  byteBuffer[3] = 0xFF;
-  byteBuffer[4] = 0xFF;
-  byteBuffer[5] = 0xFF;
-  while(VerifyWriteReady() == false){
-    //Serial<<"1\r\n";
-    //DispStatRegs();
-  }
-  FlashWritePage(0x12,byteBuffer);*/
+
+  /* byteBuffer[0] = 0x7F;
+   byteBuffer[1] = 0x01;
+   byteBuffer[2] = 0x00;
+   byteBuffer[3] = 0xFF;
+   byteBuffer[4] = 0xFF;
+   byteBuffer[5] = 0xFF;
+   while(VerifyWriteReady() == false){
+   //Serial<<"1\r\n";
+   //DispStatRegs();
+   }
+   FlashWritePage(0x12,byteBuffer);*/
   Serial<<"initial falsh dump----------------------------------\r\n";
   FlashDump(0x00,0x100);
   FlashDump(0x3FE0,0x3FFF);
-/*  byteBuffer[0] = 0x3F;
-  byteBuffer[1] = 0x09;
-  byteBuffer[2] = 0x00;
-  while(VerifyWriteReady() == false){
-    //Serial<<"3\r\n";
-    //DispStatRegs();
-  }
-  FlashWritePage(0x0E,byteBuffer);
-
-
-  //Serial<<"0*\r\n";*/
+  /*  byteBuffer[0] = 0x3F;
+   byteBuffer[1] = 0x09;
+   byteBuffer[2] = 0x00;
+   while(VerifyWriteReady() == false){
+   //Serial<<"3\r\n";
+   //DispStatRegs();
+   }
+   FlashWritePage(0x0E,byteBuffer);
+   
+   
+   //Serial<<"0*\r\n";*/
 
   //-------------------------------------------------
- /* byteBuffer[0] = 0x7F;
-  byteBuffer[1] = 0x01;
-  byteBuffer[2] = 0x00;
-  byteBuffer[3] = 0xFF;
-  byteBuffer[4] = 0xFF;
-  byteBuffer[5] = 0xFF;
-  while(VerifyWriteReady() == false){
-    //Serial<<"1\r\n";
-    //DispStatRegs();
-  }
-  FlashWritePage(0x10,byteBuffer);*/
-/*
+  /* byteBuffer[0] = 0x7F;
+   byteBuffer[1] = 0x01;
+   byteBuffer[2] = 0x00;
+   byteBuffer[3] = 0xFF;
+   byteBuffer[4] = 0xFF;
+   byteBuffer[5] = 0xFF;
+   while(VerifyWriteReady() == false){
+   //Serial<<"1\r\n";
+   //DispStatRegs();
+   }
+   FlashWritePage(0x10,byteBuffer);*/
+  /*
   byteBuffer[0] = 0x3F;
-  byteBuffer[1] = 0x01;
-  byteBuffer[2] = 0x00;
-  for (uint16_t i = 0x10; i < 0x3FFD; i++){
-    //for (uint16_t i = 0x102; i < 0x200; i++){
-    while(VerifyWriteReady() == false){
-      //Serial<<"2\r\n";
-      //DispStatRegs();
-    }
-    FlashWritePage(i,byteBuffer);
-  }
-
-  byteBuffer[0] = 0x3F;
-  byteBuffer[1] = 0x01;
-  byteBuffer[2] = 0x00;
-  while(VerifyWriteReady() == false){
-    //Serial<<"3\r\n";
-    //DispStatRegs();
-  }
-  FlashWritePage(0x3FFD,byteBuffer);
-  //Serial<<"0x100*\r\n";
-  FlashDumpBytes(0x00,0x00,7);
-  FlashDumpBytes(0x0E,0x0E,7);
-  FlashDumpBytes(0x0F,0x0F,7);
-  FlashDumpBytes(0x10,0x10,7);
-  FlashDumpBytes(0x11,0x11,7);
-  FlashDumpBytes(0x1F,0x1F,7);
-  FlashDumpBytes(0x3FFD,0x3FFD,7);
-  FlashDumpBytes(0x3FFE,0x3FFE,7);
-  FlashDumpBytes(0x3FFF,0x3FFF,7);
-  //-------------------------------------------------
-
-*/
+   byteBuffer[1] = 0x01;
+   byteBuffer[2] = 0x00;
+   for (uint16_t i = 0x10; i < 0x3FFD; i++){
+   //for (uint16_t i = 0x102; i < 0x200; i++){
+   while(VerifyWriteReady() == false){
+   //Serial<<"2\r\n";
+   //DispStatRegs();
+   }
+   FlashWritePage(i,byteBuffer);
+   }
+   
+   byteBuffer[0] = 0x3F;
+   byteBuffer[1] = 0x01;
+   byteBuffer[2] = 0x00;
+   while(VerifyWriteReady() == false){
+   //Serial<<"3\r\n";
+   //DispStatRegs();
+   }
+   FlashWritePage(0x3FFD,byteBuffer);
+   //Serial<<"0x100*\r\n";
+   FlashDumpBytes(0x00,0x00,7);
+   FlashDumpBytes(0x0E,0x0E,7);
+   FlashDumpBytes(0x0F,0x0F,7);
+   FlashDumpBytes(0x10,0x10,7);
+   FlashDumpBytes(0x11,0x11,7);
+   FlashDumpBytes(0x1F,0x1F,7);
+   FlashDumpBytes(0x3FFD,0x3FFD,7);
+   FlashDumpBytes(0x3FFE,0x3FFE,7);
+   FlashDumpBytes(0x3FFF,0x3FFF,7);
+   //-------------------------------------------------
+   
+   */
 }
 
 /*void FillCompleteRecords(){
@@ -454,19 +454,11 @@ void FlashDump(uint16_t lowerBound, uint16_t upperBound){
       Serial<<"* ";
       DispStatRegs();
     }
-    if (FlashGetPage(i,sizeof(outputArray),outputArray) == false){
-      Serial<<"failed to get page\r\n";
-      while(1){
-        Serial<<"fail\r\n";
-        delay(2000);
-      }
+    FlashGetPage(i,sizeof(outputArray),outputArray);
+    for(uint16_t j = 0; j < 256; j++){
+      Serial<<_HEX(outputArray[j])<<",";
     }
-    else{
-      for(uint16_t j = 0; j < 256; j++){
-        Serial<<_HEX(outputArray[j])<<",";
-      }
-      Serial<<"\r\n";
-    }
+
   }
 }
 
@@ -489,20 +481,15 @@ void FlashDumpBytes(uint16_t lowerBound, uint16_t upperBound,uint8_t numBytes){
       //Serial<<"* ";
       //DispStatRegs();
     }
-    if (FlashGetPage(i,sizeof(outputArray),outputArray) == false){
-      Serial<<"failed to get page\r\n";
-      while(1){
-        Serial<<"fail\r\n";
-        delay(2000);
-      }
+    FlashGetPage(i,sizeof(outputArray),outputArray);
+    for(uint16_t j = 0; j < numBytes; j++){
+      Serial<<_HEX(outputArray[j])<<"\r\n";
     }
-    else{
-      for(uint16_t j = 0; j < numBytes; j++){
-        Serial<<_HEX(outputArray[j])<<"\r\n";
-      }
-    }
+
   }
 }
+
+
 
 
 
