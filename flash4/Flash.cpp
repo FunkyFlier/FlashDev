@@ -131,7 +131,7 @@ void LoggingStateMachine(){
     if(VerifyWriteReady() == false){
       break;
     }
-    startNewLog = false;
+    //startNewLog = false;
     endCurrentLog = false;
     writePageStarted = false;
     loggingReady = false;

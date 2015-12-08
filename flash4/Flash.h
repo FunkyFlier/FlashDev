@@ -15,9 +15,6 @@ void SearchForLastRecord();
 boolean GetRecordNumber(uint16_t, uint16_t*, uint16_t*, uint8_t*);
 void CompleteRecord(uint16_t,uint16_t*,uint16_t*);
 
-void WriteBufferRemainder();
-boolean WriteBufferHandler(uint8_t , uint8_t*);
-  
 void FlashInit();
 void LoggingInit();
 

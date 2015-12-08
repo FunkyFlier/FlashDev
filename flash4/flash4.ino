@@ -81,6 +81,7 @@ void loop(){
 
 void LoggingTest(){
   uint16_t logCount = 0;
+  uint8_t testByte = 0;
   for(uint8_t i = 0; i < 100; i++){
     logTestBuffer[i] = i;
   }
@@ -94,6 +95,7 @@ void LoggingTest(){
       //Serial<<WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer)<<"\r\n";
       //writePageStarted = WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer);
       WriteBufferHandler(sizeof(logTestBuffer),logTestBuffer);
+      //WriteBufferHandler(1,&testByte);
       logCount++;
     }
   }
